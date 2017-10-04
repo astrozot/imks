@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='imks',
-      version='1.4',
+      version='3.0.1',
       description='An ipython extension to make computations with units',
       long_description=readme(),
       classifiers=[
@@ -32,7 +32,6 @@ setup(name='imks',
         'soerp': ['soerp'],
         'mcerp': ['mcerp']
       },
-      include_package_data=True,
       test_suite='nose.collector',
       tests_require=['nose'],
       include_package_data=True,
