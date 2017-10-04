@@ -479,6 +479,7 @@ from collections import deque
 from io import StringIO
 import token, tokenize, re
 from unidecode import unidecode
+from ._version import __version__, __date__
 from . import units
 from . import currencies
 from . import calendars
@@ -1505,7 +1506,8 @@ class imks_magic(Magics):
         ip.run_line_magic("load_imks", "Startup")
         # reprint the welcome message
         if config["banner"]:
-            print("Welcome to iMKS 3.0 - © Marco Lombardi 2017")
+            print("Welcome to iMKS %s - © Marco Lombardi %s" %
+                      (__version__, __date__))
             print("Type %imks -h or ! for help.")
 
         
@@ -2428,7 +2430,7 @@ def load_ipython_extension(ip):
                 re_key=r"^\s*(%imks\s+).*")
 
     if config["banner"]:
-        print("Welcome to iMKS 3.0 - © Marco Lombardi 2017")
+        print("Welcome to iMKS %s - © Marco Lombardi %s" % (__version__, __date__))
         print("Type %imks -h or ! for help.")
 
 # from IPython.core.debugger import Pdb

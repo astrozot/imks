@@ -1,0 +1,6 @@
+pbr
+pip
+setuptools
+ply
+unidecode
+lxml
