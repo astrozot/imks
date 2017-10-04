@@ -1,0 +1,91 @@
+######################################################################
+##		     iMKS library file, v. 1.0                      ##
+##    (c) 2000-2014 by Marco Lombardi <marco.lombardi@gmail.com>    ##
+######################################################################
+
+%newunit AU=au=149597870700[m]		    # "Astronomical Unit"
+%newunit ly=9460536207068016[m]         # "Light Year"
+%newunit pc=parsec=3600*180/pi*1[au]	# "Parsec"
+%newunit Jy=jansky=1e-26[W/m^2 Hz]      # "Jansky"
+
+%let siderealyear=365.25636[day]        # "Sidereal year (quasar reference frame)"
+%let siderealday=86164.09054[s]         # "Mean sidereal day"
+
+%let Msun=1.98889e30[kg]                # "Mass of the Sun"
+%let Rsun=6.961e8[m]                    # "Radius of the Sun"
+%let Lsun=3.847e26[W]                   # "Luminosity of the Sun"
+%newunit Msun=Msun                      # "Mass of the Sun"
+%newunit Lsun=Lsun                      # "Luminosity of the Sun"
+
+# CMB related quantities
+%let T_CMB = 2.725[K]                   # "CMB temperature"
+%lazy rho_CMB = pi^2/(c^2*15) * (k*T_CMB)^4/(hbar*c)^3 # "CMB energy density"
+%lazy n_CMB = 2*zeta(3)*(k*T_CMB)^3 / (pi^2*hbar^3*c^3) @ cm # "CMB number density"
+%lazy n_nu = (3.0/11.0) * n_CMB @ cm    # "Neutrino number density"
+%let T_nu = (4.0/11.0)^(1/3) * T_CMB    # "Neutrino temperature"
+
+# Cosmological quantities and functions
+
+%let H0 = 70[km s^-1 Mpc^-1]            # "Hubble's constant"
+%lazy rho_c = 3*H0^2/(8*pi*G)           # "Critical density"
+%let OmegaM = 0.3                       # "Mass density parameter"
+%let OmegaL = 0.7                       # "Cosmological constant parameter"
+%lazy OmegaCMB = rho_CMB / rho_c        # "CMB density parameter"
+%lazy OmegaK = 1 - OmegaM - OmegaL      # "Curvature parameter"
+%lazy dH = c / H0 @  Mpc                # "Hubble's distance"
+%lazy tH = 1 / H0 @  Gyr                # "Hubble's time"
+
+
+def Dcomoving(z1, z2=None):
+  "Comoving distance"
+
+  def Ecosmo(z):
+    return 1 / sqrt(OmegaL + ((1-OmegaM-OmegaL) + OmegaM*(1+z))*(1+z)^2)
+
+  if z2 is None: 
+      z2 = z1
+      z1 = 0
+  return dH * quad(Ecosmo, [z1, z2]) @ Mpc
+
+def Dtransverse(z):
+  "Transverse comoving distance"
+  if OmegaK > 0:
+      return dH * sinh(sqrt( OmegaK) * Dcomoving(z) / dH) / sqrt( OmegaK) @ Mpc
+  elif OmegaK < 0:
+      return dH *  sin(sqrt(-OmegaK) * Dcomoving(z) / dH) / sqrt(-OmegaK) @ Mpc
+  else:
+     return Dcomoving(z) @ Mpc
+
+def Dangular(z1, z2=None):
+  "Angular diameter distance"
+  if z2 is None: 
+      z2 = z1
+      z1 = 0
+  if z1 == 0:
+      return Dtransverse(z2) / (1 + z2) @ Mpc
+  else:
+      d1 = Dtransverse(z1)
+      d2 = Dtransverse(z2)
+      return (d2 * sqrt(1 + OmegaK * d1^2 / dH^2) - \
+              d1 * sqrt(1 + OmegaK * d2^2 / dH^2)) / (1 + z2) @ Mpc
+
+def Dluminosity(z):
+  "Luminosity distance."
+  return Dtransverse(z) * (1 + z) @ Mpc
+
+def Bnu(T, l):
+  """The Planck function in terms of the wavelength.
+
+  Parameters:
+    T  Temperature
+    l  Wavelength
+  """
+  global c, h, k
+  nu = c / l
+  return (2*h*nu^3/c^2) / (exp(h*nu/(k*T)) - 1)
+
+%newsystem astro=[pc|km/s|Msun|K|A|cd|mol|EUR] # "Astronomical system"
+
+### Local Variables:
+### mode: python
+### End:
