@@ -35,7 +35,7 @@ def getconstants(offline=False, grace=30, timeout=3, engine=False):
     force = False
     url = 'http://physics.nist.gov/cuu/Constants/Table/allascii.txt'
     try:
-        path = os.path.join(os.getenv('HOME'), '.imks3', 'constants.dat')
+        path = os.path.join(os.getenv('HOME'), '.imks', 'constants.dat')
         update = os.path.getmtime(path)
         delta = (time.time() - update) / 86400.0
     except OSError:

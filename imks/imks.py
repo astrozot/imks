@@ -266,7 +266,7 @@ Configuration file
 
 When launched, iMKS load definitions from the configuration file Startup.imks.
 This file is searched in the current directory, and if not found in the
-~/.imks3 directory.  The file should contain the standard definitions that one
+~/.imks directory.  The file should contain the standard definitions that one
 is likely to need for any computation.  Typically the file uses the following
 magic commands:
 
@@ -701,7 +701,7 @@ class imks_magic(Magics):
             except:
                 if not os.path.isabs(filename):
                     try:
-                        path = os.path.join(os.environ["HOME"], ".imks3",
+                        path = os.path.join(os.environ["HOME"], ".imks",
                                             filename)
                         code = ip.find_user_code(path, py_only=True)
                     except:
@@ -2364,6 +2364,17 @@ def imks_date_completer(self, event):
 
 def load_ipython_extension(ip):
     global config
+
+    # make sure we have a ~/.imks directory
+    import os, os.path
+    dotpath = os.path.join(os.environ["HOME"], ".imks")
+    if os.path.exists(dotpath):
+        if not os.path.isdir(dotpath):
+            raise IOError("~/.imks must be a directory")
+    else:
+        print("Making the directory ~/.imks")
+        os.mkdir(dotpath)
+    
     # set up simplified quantity input
     for s in (ip.input_splitter, ip.input_transformer_manager): 
         s.logical_line_transforms.insert(0, input_command_transformer()) 

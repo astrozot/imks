@@ -72,7 +72,7 @@ def getrates(app_id="", base='EUR', offline=False, grace=3, historical=None,
     else:
         force = False
         try:
-            path = os.path.join(os.getenv('HOME'), '.imks3', 'currencies.dat')
+            path = os.path.join(os.getenv('HOME'), '.imks', 'currencies.dat')
             currencytime = os.path.getmtime(path)
             delta = (time.time() - currencytime) / 86400.0
         except OSError:
