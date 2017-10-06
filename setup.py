@@ -39,7 +39,9 @@ setup(name='imks',
       install_requires=[
           'ply',
           'unidecode',
-          'lxml'
+          'lxml',
+          'ProxyTypes;python_version<"3.0"',
+          'objproxies;python_version>"3.0"'
         ],
       extras_require = {
         'numpy': ['numpy'],
@@ -48,7 +50,7 @@ setup(name='imks',
         'soerp': ['soerp'],
         'mcerp': ['mcerp']
       },
-      test_suite='nose.collector',
       tests_require=['nose'],
+      test_suite='nose.collector',
       include_package_data=True,
       zip_safe=False)

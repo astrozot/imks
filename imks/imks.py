@@ -317,17 +317,10 @@ Other magic commands
 
 %lazy <name>=<expression>
   Define the variable <name> as <expression> lazily: that is, <expression> is
-  evaluated only when <name> is used or displayed.  This is implemented by
-  making <name> a function with no arguments, and by automatically adding a
-  function call name() when name is used in the input.
+  evaluated only when <name> is used or displayed.
 
 %dellazy <name>
   Delete a previously defined %lazy variable.
-
-%lazyvalue <name>=<expression>
-  Define the variable <name> as <expression> lazily: that is, <expression> is
-  evaluated only when <name> is used or displayed.  This only works for simple
-  values, and not for more general objects such as %lazy.
 
 %lazyprefix <name>=<expression>
   Define a lazy prefix (whose <expression> is evaluate only when the prefix is
@@ -452,10 +445,6 @@ The following rules are used:
 
   > mile!! --> mile, mph, nmi, mi
 
-* Unicode characters appearing outside strings are converted into strings of 
-  the form _uTf_xx_xx_xx..., where each xx is the hexadecimal representation
-  of a byte of the character in UTF8 encoding.
-
 * Value, System, and Doc are defined in units.py, and for these objects the
   standard operators are redefined to include tracking of physical units.
 
@@ -484,6 +473,11 @@ from . import units
 from . import currencies
 from . import calendars
 
+try:
+    from objproxies import CallbackProxy, LazyProxy
+except:
+    from peak.util.proxies import CallbackProxy, LazyProxy
+
 config = {"banner": True,
           "enabled": True,
           "auto_brackets": True,
@@ -498,7 +492,6 @@ config = {"banner": True,
           "max_fixed": None}
 engine = "ufloat"
 engine_module = None
-lazyvalues = set()
 extensions = set()
 
 ######################################################################
@@ -1028,85 +1021,29 @@ class imks_magic(Magics):
         """Define a general lazy value in terms of an expression.
 
         Usage:
-          %lazy var=[aliases=]=expr  [# "Documentation string"]
+          %lazy [options] var=[aliases=]=expr  [# "Documentation string"]
 
         This magic defines the variable var to be the result of expression.  In
         contrast to standard variables, however, expr is not computed immediately:
         rather, it is evaluated only when var is used or displayed.
 
-        This magic can be used similarly to %lazyvalue: the difference is that %lazy
-        support any kind of variable, while %lazyvalue is limited to simple values.
-        The mechanism used is also different: %lazy defines var to be a function with
-        no argument, and include it to an internal list used to automatically add ()
-        when parsing the input line; %lazyvalue uses the LazyValue python object (a
-        child of Value)."""
+        Options:
+          -1   Evaluate the entire expression only once, the first time the prefix is
+               used"""
         from io import StringIO
-        global lazyvalues
         command, doc = self.split_command_doc(arg)
         command = command.replace('"', '\\"').replace("'", "\\'")
-        opts, command = self.parse_options(command, "1u")
+        opts, command = self.parse_options(command, "1")
+        if "1" in opts: proxy = LazyProxy
+        else: proxy = CallbackProxy
         tmp = command.split("=")
         names, source = tmp[:-1], tmp[-1]
-        lazyvalues.difference_update([name.strip() for name in names])
         value = "lambda : " + source
         tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
         s = tokenize.untokenize(unit_transformer(list(tokens)))
         value = self.shell.ev(s)
         for name in names:
-            self.shell.user_ns[name.strip()] = value & units.Doc(doc, source)
-            lazyvalues.add(name.strip())
-
-    @line_magic
-    def dellazy(self, arg):
-        """Delete a previously defined lazy variable.
-
-        Usage:
-          %dellazy var
-
-        This magic needs to be used only for variables defined through %lazy, and
-        not for the ones defined through %lazyvalue (which can be deleted with the
-        usual python del command, or by just overwriting them)."""
-        global lazyvalues
-        lazyvalues.difference_update([arg.strip()])
-        del self.shell.user_ns[arg.strip()]
-            
-    @line_magic
-    def lazyvalue(self, arg):
-        """Define a variable lazily in terms of an expression.
-
-        Usage:
-          %lazyvalue [options] var=[aliases=]=expr  [# "Documentation string"]
-
-        This magic defines the variable var to be the value of expression.  In contrast
-        to standard variables, however, expr is not computed immediately: rather, it is
-        evaluated only when var is used or displayed.  Among other uses, this allows
-        one to define variables with a arbitrary precision (in the sense that the
-        precision used when calculating the variable is the one set at real time), or
-        variables that depend dynamically on other external variables.  Note that this
-        magic only works for simple values: for more complicated combination, please
-        use the %lazy magic.
-
-        Options:
-          -u   Evaluate the expression unit each time (by default, the value of the
-               expression is recomputed each time it is needed, but the unit is
-               computed only once, the first time variable is calculated)
-          -1   Evaluate the entire expression (unit and value) only once, the first
-               time the variable is calculated
-
-        See also %lazy, %lazyunit, and %lazyprefix."""
-        from io import StringIO
-        command, doc = self.split_command_doc(arg)
-        command = command.replace('"', '\\"').replace("'", "\\'")
-        opts, command = self.parse_options(command, "1u")
-        tmp = command.split("=")
-        names, value = tmp[:-1], tmp[-1]
-        value = "lambda : " + value
-        tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
-        value = self.shell.ev(tokenize.untokenize(
-            unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(value, once="1" in opts, unit_once="u" not in opts)
-        for name in names:
-            self.shell.user_ns[name.strip()] = lvalue
+            self.shell.user_ns[name.strip()] = proxy(value & units.Doc(doc, source))
 
     @line_magic
     def lazyprefix(self, arg):
@@ -1123,16 +1060,18 @@ class imks_magic(Magics):
         from io import StringIO
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
+        if "1" in opts: proxy = LazyProxy
+        else: proxy = CallbackProxy
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
         walue = "lambda : " + value
         tokens = tokenize.generate_tokens(StringIO(walue.strip()).readline)
         walue = self.shell.ev(tokenize.untokenize(
             unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(walue, once="1" in opts, unit_once=True)
         for name in names:
             self.checkvalidname(name)
-            units.newprefix(name.strip(), lvalue, doc=doc, source=value.strip())
+            units.newprefix(name.strip(), proxy(walue), doc=doc,
+                                source=value.strip())
 
     @line_magic
     def lazyunit(self, arg):
@@ -1149,16 +1088,17 @@ class imks_magic(Magics):
         from io import StringIO
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
+        if "1" in opts: proxy = LazyProxy
+        else: proxy = CallbackProxy
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
         walue = "lambda : " + value
         tokens = tokenize.generate_tokens(StringIO(walue.strip()).readline)
         walue = self.shell.ev(tokenize.untokenize(
             unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(walue, once="1" in opts, unit_once=True)
         for name in names:
             self.checkvalidname(name)
-            units.newunit(name.strip(), lvalue, doc=doc, source=value.strip())
+            units.newunit(name.strip(), proxy(walue), doc=doc, source=value.strip())
 
     @line_magic
     def newtransformer(self, arg):
@@ -1487,7 +1427,7 @@ class imks_magic(Magics):
         """Reset the iMKS session.
 
         This does a full reset: the engine, however, is left unchanged."""
-        global lazyvalues, config
+        global config
         import gc
         # this code is from IPython
         ip = self.shell
@@ -1495,7 +1435,6 @@ class imks_magic(Magics):
         gc.collect()
         # load new symbols
         units.reset()
-        lazyvalues = set()
         units.load_variables(ip)
         # math engine: this is not reset!
         globals()[config["engine"] + "_engine"](ip)
@@ -1525,11 +1464,6 @@ re_date = re.compile(r"(\d+(\.\d+){2,})([ ]+\d\d?:\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?:
 def command_transformer(line):
     global config
     if not config["enabled"]: return line
-    if line.lstrip()[0:6] == "%lazy ":
-        # Preset lazy variables for the token transformer
-        names = line.lstrip()[6:].split("=")[0:-1]
-        for name in names:
-            lazyvalues.add(name.strip())
     if line and line[-1] == '!':
         if len(line) > 1 and line[-2] == '!': line = "%uinfo -a " + line[:-2]
         else: line = "%uinfo " + line[:-1]
@@ -1762,24 +1696,6 @@ def unit_transformer(tokens):
             newtoks.append(tokens[n])
             n = n + 1
         tokens = newtoks
-    # Now scan for lazy values
-    global lazyvalues
-    newtoks = []
-    ntokens = len(tokens)
-    n = 0
-    offset = 0
-    while n < ntokens:
-        t = offset_token(tokens[n], offset)
-        if t[0] == token.NAME and t[1] in lazyvalues:
-            newtoks.append(t)
-            newtoks.append((token.OP, "(", t[3], (t[3][0], t[3][1]+1), t[4]))
-            newtoks.append((token.OP, ")", (t[3][0], t[3][1]+1),
-                            (t[3][0], t[3][1]+2), t[4]))
-            offset += 2
-        else:
-            newtoks.append(t)
-        n = n + 1
-    tokens = newtoks
     # Now proceed
     newtoks = []                        # Transformed tokens
     queue = []                          # Queue used to store partial units
