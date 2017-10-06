@@ -14,6 +14,11 @@ from . import pycalcal as pcc
 from .units import Value
 from . import geolocation
 
+try:
+    from builtins import str as text
+except:
+    from __builtin__ import unicode as text
+
 def caldoc(c):
     import re
     from textwrap import wrap
@@ -67,7 +72,7 @@ Alternatively, the function can be used to represent an instant in the
 In this calendar, the day start at %s.
 """ % (c.calendar, c.daystart)
     d = c.__dict__.copy()
-    doc = unidecode(str(doc))
+    doc = unidecode(text(doc))
     pars = []
     for par in doc.split("\n"):
         m = re.match(" *([1-9][-.)]|[-*]) *", par)
@@ -229,8 +234,8 @@ class CalDate(Value):
             isinstance(pars[self.holidayarg], str):
             found = False
             for hk,hw in self.holidays.items():
-                dpar = unidecode(str(pars[self.holidayarg])).lower()
-                if unidecode(str(hk)).lower() == dpar:
+                dpar = unidecode(text(pars[self.holidayarg])).lower()
+                if unidecode(text(hk)).lower() == dpar:
                     found = True
                     if callable(hw):
                         h = hw(*pars[0:self.holidayarg])
@@ -258,10 +263,10 @@ class CalDate(Value):
                     else:
                         parser = getattr(self, par + "names", None)
                         if parser:
-                            parser = tuple(unidecode(str(a)).lower() \
+                            parser = tuple(unidecode(text(a)).lower() \
                                            for a in parser)
                             try:
-                                pars[n] = parser.index(unidecode(str(pars[n])).lower())
+                                pars[n] = parser.index(unidecode(text(pars[n])).lower())
                             except ValueError:
                                 raise ValueError("%s: '%s' is not a valid %s name" %
                                                  (self.calendar, pars[n], par))

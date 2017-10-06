@@ -1,3 +1,11 @@
+from __future__ import absolute_import, division, print_function
+
+try:
+    from urllib import request, error
+except:
+    import urllib2 as request
+    error = request
+
 from . import units
 
 class Constants(dict):
@@ -28,9 +36,8 @@ class Constants(dict):
 
 constants = Constants({})
 
-def getconstants(offline=False, grace=30, timeout=3, engine=False):
+def getconstants(offline=False, grace=60, timeout=3, engine=False):
     import os, os.path, time, pickle
-    from urllib import request, error
     global constants
     force = False
     url = 'http://physics.nist.gov/cuu/Constants/Table/allascii.txt'
@@ -67,7 +74,7 @@ def getconstants(offline=False, grace=30, timeout=3, engine=False):
             constants.update([(k, (engine(v1), v2, v3))
                               for k, (v1, v2, v3) in nistconst.items()])
             f = open(path, "wb")
-            pickle.dump(nistconst, f)
+            pickle.dump(nistconst, f, protocol=2)
             f.close()
             return nistconst
         except error.URLError:

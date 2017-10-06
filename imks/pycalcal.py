@@ -83,7 +83,10 @@ def ifloor(n):
 # naming it iround
 def iround(n):
     """Return the whole part of m/n."""
-    from builtins import round
+    try:
+        from builtins import round
+    except:
+        from __builtin__ import round
     return int(round(n))
 
 

@@ -238,6 +238,7 @@ def load(ip):
     old_mpf_str = x.__class__.__str__
     x.__class__.__str__ = new_mpf_str
     ip.user_ns["ufloat"] = ufloat
+    ip.user_ns["mp"].pretty = True
 
 def unload(ip):
     "Unload all mpmath defined functions"

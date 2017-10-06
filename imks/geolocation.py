@@ -1,5 +1,12 @@
+from __future__ import absolute_import, division, print_function
 import math, json, time, pickle
-from urllib import request, error
+
+try:
+    from urllib import request, error
+except:
+    import urllib2 as request
+    error = request
+    
 import pytz
 from . import units
 from . import pycalcal as pcc

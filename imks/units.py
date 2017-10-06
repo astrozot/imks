@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import division
+from __future__ import absolute_import, division, print_function
 from collections import OrderedDict as ODict
 import traceback, re, types, mpmath
 from mpmath import mpmathify, mp
 from mpmath.libmp import to_str, mpc_to_str
 from .xdict import xdict
+
+try:
+    basestring
+except:
+    basestring = str
 
 def make_object_w_doc(value, doc="", source=""):
     c = type(value.__class__.__name__ + "_w_doc",
@@ -57,7 +62,7 @@ class Unit(ODict):
        used for unit transformations and is interpreted as (u1^exp1 u2^exp2 ...)."""
 
     def __init__(self, *args, **kw):
-        if len(args) == 1 and isinstance(args[0], str):
+        if len(args) == 1 and isinstance(args[0], basestring):
             unit = Unit()
             if not re.match(r"^[ \t]*$", args[0]):
                 tmp = unityacc.parse(args[0], lexer=unitlex)[0]
@@ -90,8 +95,12 @@ class Unit(ODict):
             if u != 0: return True
         return False
 
+    def __nonzero__(self):
+        """Python 2 compatibility method that calls __bool__."""
+        return self.__bool__()
+
     def __eq__(self, y):
-        s = set(self.keys() | y.keys())
+        s = set(self.keys()) | set(y.keys())
         for n in s:
             if self.get(n, 0) != y.get(n, 0): return False
         return True
@@ -112,7 +121,7 @@ class Unit(ODict):
         v = Value(1.0)
         for n, u in self.items():
             if u == 0: continue
-            if isinstance(n, str):
+            if isinstance(n, basestring):
                 if n[0] != "'" or n[-1] != "'": continue
                 v *= user_ns[n[1:-1]] ** u
         return v
@@ -125,7 +134,7 @@ class Unit(ODict):
         else: lastprec = False
         for n, u in self.items():
             if u == 0: continue
-            if isinstance(n, str):
+            if isinstance(n, basestring):
                 if n[0] == '"' and n[-1] == '"': continue
                 if latex:
                     if n[0] == n[-1] and n[0] == "'": base = r"\mathbf{%s}" % n[1:-1]
@@ -240,7 +249,7 @@ class Value(mpnumeric):
             self.showunit = None
             self.showprefix = False
             self.offset = 0
-        if isinstance(unit, str):
+        if isinstance(unit, basestring):
             if not re.match(r"^[ \t]*$", unit): 
                 tmp, uparse = unityacc.parse(unit, lexer=unitlex)
                 if isinstance(tmp, tuple):
@@ -380,7 +389,7 @@ class Value(mpnumeric):
                 cachedat[tuple(oldus)] = (m, newus, newvs)
             else:
                 # Check if we are requested a particular unit in a natural system
-                if nunits == 1 and nvalues > 0 and not isinstance(us[0], str):
+                if nunits == 1 and nvalues > 0 and not isinstance(us[0], basestring):
                     tmp = Value(1, oldus[0]).setUnits([oldus[0]])
                     out = (self / tmp).setUnits(oldus[1:])
                     out.showunit += tmp.showunit
@@ -392,7 +401,7 @@ class Value(mpnumeric):
                     s.showunit = None
                     return s
                 # General simple case
-                newuvs = zip([u if isinstance(u, str) else u.toTuple()
+                newuvs = zip([u if isinstance(u, basestring) else u.toTuple()
                               for u in us], vs)
                 uvs = ODict(newuvs)
                 res = None
@@ -409,7 +418,7 @@ class Value(mpnumeric):
                 else: s.showunit = None
                 return s.removeVariableUnits()
         r = mpmath.lu_solve(m.transpose(), mpmath.matrix(s.unit.toList()))
-        uvs = Unit(ODict([(u if isinstance(u, str) else u.toTuple(), v)
+        uvs = Unit(ODict([(u if isinstance(u, basestring) else u.toTuple(), v)
                          for u, v in zip(newus, r.transpose().tolist()[0])]))
         if sortunits: s.showunit = uvs.sort()
         else: s.showunit = uvs
@@ -686,6 +695,10 @@ class Value(mpnumeric):
 
     def __bool__(self):
         return bool(self.value)
+
+    def __nonzero__(self):
+        """Python 2 compatibility method that calls __bool__."""
+        return self.__bool__()
 
     # Reverse methods
 

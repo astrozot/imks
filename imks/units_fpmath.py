@@ -205,6 +205,7 @@ def load(ip):
     ip.user_ns["fp"] = mpmath.fp
     ip.user_ns["fraction"] = fraction
     ip.user_ns["ufloat"] = ufloat
+    ip.user_ns["fp"].pretty = True
 
 def unload(ip):
     "Unload all mpmath defined functions"

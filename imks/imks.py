@@ -466,7 +466,7 @@ The following rules are used:
   prefixes, units, and systems, freely accessible from the user space.
 """
 
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 from traitlets import List, Int, Any, Unicode, CBool, Bool, Instance
 from IPython.core.inputtransformer import (CoroutineInputTransformer, 
                                            StatelessInputTransformer,
@@ -497,7 +497,7 @@ config = {"banner": True,
           "min_fixed": None,
           "max_fixed": None}
 engine = "ufloat"
-engine_unloader = None
+engine_module = None
 lazyvalues = set()
 extensions = set()
 
@@ -641,11 +641,15 @@ class imks_magic(Magics):
         if "c" in opts:
             if opts["c"] in ["math", "mpmath", "fpmath", "numpy",
                              "umath", "soerp", "mcerp"]:
-                globals()[opts["c"] + "_engine"](self.shell)
+                try:
+                    change_engine(self.shell, opts["c"])
+                    imks_print("iMKS math engine: %s.  Consider doing a %%reset." %
+                               opts["c"])
+                except ModuleNotFoundError:
+                    pass
             else:
                 print("Incorrect argument: must be math, mpmath, fpmath, numpy, umath, soerp, or mcerp.")
                 return
-            imks_print("iMKS math engine: %s.  Consider doing a %%reset." % opts["c"])
             config["engine"] = opts["c"]
         if "o" in opts:
             if opts["o"] == "0":
@@ -1410,7 +1414,7 @@ class imks_magic(Magics):
         Usage:
           %pickle [-p protocol] filename
         """
-        global config, engine_unloader
+        global config, engine_module
         import pickle 
 
         opts, us = self.parse_options(args, ":p")
@@ -1421,9 +1425,9 @@ class imks_magic(Magics):
             return
         f = open(us[0], "wb")
         # Unload the engine, to remove engine-related variables
-        if engine_unloader:
-            engine_unloader(self.shell)
-            engine_unloader = None
+        if engine_module:
+            engine_module.unload(self.shell)
+            engine_module = None
         # Pickle all variables we can
         fails = []
         d = {}
@@ -1449,7 +1453,7 @@ class imks_magic(Magics):
         Usage:
           %unpickle filename
         """
-        global config, engine_unloader
+        global config
         import pickle
         opts, us = self.parse_options(args, "")
         us = us.split()
@@ -2047,67 +2051,24 @@ input_unit_transformer = TokenInputTransformer.wrap(unit_transformer)
 ######################################################################
 # Engines and related initialization functions
 
-def math_engine(ip):
-    from . import units_math
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_math.load(ip)
-    engine = "ufloat"
-    engine_unloader = units_math.unload
+from importlib import import_module
 
-def mpmath_engine(ip):
-    from . import units_mpmath
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_mpmath.load(ip)
-    ip.user_ns["mp"].pretty = True
-    engine = "ufloat"
-    engine_unloader = units_mpmath.unload
-
-def fpmath_engine(ip):
-    from . import units_fpmath
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_fpmath.load(ip)
-    ip.user_ns["fp"].pretty = True
-    engine = "ufloat"
-    engine_unloader = units_fpmath.unload
-
-def numpy_engine(ip):
-    from . import units_numpy
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_numpy.load(ip)
-    ip.user_ns["mp"].pretty = True
-    engine = "ufloat"
-    engine_unloader = units_numpy.unload
-
-def umath_engine(ip):
-    from . import units_umath
-    from uncertainties import ufloat_fromstr
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_umath.load(ip)
-    engine = "ufloat"
-    engine_unloader = units_umath.unload
-
-def soerp_engine(ip):
-    from . import units_soerp
-    from uncertainties import ufloat_fromstr
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_soerp.load(ip)
-    engine = "ufloat"
-    engine_unloader = units_soerp.unload
-
-def mcerp_engine(ip):
-    from . import units_mcerp
-    from uncertainties import ufloat_fromstr
-    global engine, engine_unloader
-    if engine_unloader: engine_unloader(ip)
-    units_mcerp.load(ip)
-    engine = "ufloat"
-    engine_unloader = units_mcerp.unload
+def change_engine(ip, newengine):
+    global engine, engine_module
+    try:
+        module = import_module("imks.units_" + newengine)
+    except:
+        print("Cannot load engine %s" % newengine)
+        raise ModuleNotFoundError
+    if engine_module: engine_module.unload(ip)
+    try:
+        module.load(ip)
+        engine = "ufloat"
+    except:
+        print("Cannot load engine %s" % newengine)
+        engine_module.load(ip)
+        raise ModuleNotFoundError
+    engine_module = module    
 
 def imks_import(name, globals=None, locals=None, fromlist=None):
     import imp
@@ -2196,7 +2157,7 @@ class Imks_completer(object):
         return r
 
     def get_quotes(self, text, cs):
-        ds = [unidecode(str(c)) for c in cs]
+        ds = [unidecode(c) for c in cs]
         if text == "" or text[0] == '"':
             r = ['"' + d + '"' for d in ds]
         else:
@@ -2384,8 +2345,8 @@ def load_ipython_extension(ip):
     units.load_variables(ip)
 
     # math engine
-    config["engine"] = "mpmath"
-    mpmath_engine(ip)
+    config["engine"] = "math"
+    change_engine(ip, config["engine"])
 
     # input transformers
     config["intrans"] = {}
@@ -2446,3 +2407,4 @@ def load_ipython_extension(ip):
 
 # from IPython.core.debugger import Pdb
 # Pdb().set_trace()
+

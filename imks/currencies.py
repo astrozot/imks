@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
+try:
+    from urllib import request, error
+except:
+    import urllib2 as request
+    error = request
+
 from . import units
 
 basecurrency = None
@@ -63,7 +69,6 @@ currency_symbols = {
 def getrates(app_id="", base='EUR', offline=False, grace=3, historical=None,
              strict=False, timeout=3):
     import os, os.path, time, pickle, json
-    from urllib import request, error
     global currencydict, currencytime
     url1 = 'http://openexchangerates.org/api/currencies.json'
     url2 = 'https://openexchangerates.org/api/latest.json?app_id=%s' % app_id
@@ -90,8 +95,8 @@ def getrates(app_id="", base='EUR', offline=False, grace=3, historical=None,
             rates = data["rates"]
             if not historical:
                 f = open(path, "wb")
-                pickle.dump(currencydict, f)
-                pickle.dump(rates, f)
+                pickle.dump(currencydict, f, protocol=2)
+                pickle.dump(rates, f, protocol=2)
                 f.close()
             return rates
         except error.URLError as e:

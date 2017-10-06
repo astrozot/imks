@@ -48,11 +48,13 @@ class UnitTestCase(unittest.TestCase):
                  (V(27, 'm/s') ** (1.0/3.0), V(3, 'm^1/3 s^-1/3')),
                  (V(300, 'K'), V(26.85, 'degC')),
                  ((V(1, 'kPa')*V(40, 'cm^3')/V(10, 'g'))**0.5, V(2, 'km/ks')),
-                 (V(4, 'm/s') / V(2, 'm/s'), 2.0)]
+                 (V(4, 'm/s') / V(2, 'm/s'), V(2.0))]
         for a, b in tests:
-            self.assertAlmostEqual(a, b,
+            self.assertAlmostEqual(a.value, b.value,
                 msg="Unit operation failed: %s != %s" % (a, b))
-
+            self.assertEqual(a.unit, b.unit,
+                msg="Unit operation failed: %s != %s" % (a, b))
+                                
     def test_comparisons(self):
         tests = [(V(1.2, 'm'), V(119, 'cm'), '__gt__'),
                  (V(0.1,'m'), V(100, 'cm'), '__lt__'),
@@ -78,7 +80,7 @@ class UnitTestCase(unittest.TestCase):
                     v1 = V(randrange(-10,10), u1)
                     v2 = V(randrange(-10,10), u2)
                     if v1.value == 0 or v2.value == 0: continue
-                    with self.assertRaisesRegex(units.UnitError,
+                    with self.assertRaisesRegexp(units.UnitError,
                                 "\[.*\] *incompatible with *\[.*\] *in *%s" % op):
                         tmp = getattr(v1, op)(v2)
 
@@ -95,7 +97,7 @@ class UnitTestCase(unittest.TestCase):
             x = a | units.System(b[1])
             v = x / V(1, str(x.showunit).strip(' []'))
             self.assertAlmostEqual(v.value, b[0], msg="Conversion failed")
-            self.assertFalse(bool(v.unit), "Conversion failed between %s and %s" %
+            self.assertFalse(bool(v.unit), "Conversion failed between %s and [%s]:" %
                                  (str(x.unit), b[1]))
 
     def test_complex_conversions(self):

@@ -261,7 +261,6 @@ def showdms(x, latex=False, pretty=False):
 %newformat dms=showdms # "A format for strings like 12d 30' 25.2\""
 
 %load_imks Astro
-%load_imks_ext -s jpl
 %load_imks_ext -s currencies
 
 %defaultsystem si

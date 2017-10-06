@@ -1,6 +1,6 @@
 import numpy
-from units import Value
-from uparse import uparse
+from .units import Value
+from .uparse import uparse
 
 def numdoc(f):
     "Decorator to copy the mpmath __doc__ string."

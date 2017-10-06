@@ -246,7 +246,7 @@ def load_minor(minor):
 
 def loadJPLconstants(force=False):
     import pickle, os, os.path
-    path = os.path.join(os.getenv('HOME'), '.imks', 'JPLconstants.idat')
+    path = os.path.join(os.getenv('HOME'), '.imks', 'JPLconstants.dat')
     planets = {}
     moons = {}
     f = None
@@ -262,8 +262,8 @@ def loadJPLconstants(force=False):
         planets = load_planets()
         moons = load_moons()
         f = open(path, "wb")
-        pickle.dump(planets, f)
-        pickle.dump(moons, f)
+        pickle.dump(planets, f, protocol=2)
+        pickle.dump(moons, f, protocol=2)
         f.close()
     for k1,v1 in planets.items():
         for k2,v2 in v1.items():
