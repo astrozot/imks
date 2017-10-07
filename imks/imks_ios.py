@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import token, tokenize, re
-import .units,
+import units, units_fpmath
 from collections import deque
 
 try:
@@ -13,6 +13,7 @@ config = {"banner": True,
           "enabled": True,
           "auto_brackets": True,
           "standard_exponent": True,
+          "unicode": False,
           "engine": "",
           "sort_units": units.sortunits,
           "unit_tolerant": units.tolerant,
@@ -22,7 +23,7 @@ config = {"banner": True,
           "min_fixed": None,
           "max_fixed": None}
 engine = "ufloat"
-engine_module = None
+engine_unloader = None
 lazyvalues = set()
 
 re_date = re.compile(r"(\d+(\.\d+){2,})([ ]+\d\d?:\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?(\.\d*)?)?")
@@ -1035,6 +1036,15 @@ class imks_magic(Magics):
                 imks_print("Standard exponent (^) disabled")
             else:
                 imks_print("Incorrect argument.  Use on/1 or off/0")
+        if "u" in opts:
+            if opts["u"] in ["on", "1", "yes"]:
+                config["unicode"] = True
+                imks_print("Unicode enabled")
+            elif opts["u"] in ["off", "0", "no"]:
+                config["unicode"] = False
+                imks_print("Unicode disabled")
+            else:
+                print("Incorrect argument.  Use on/1 or off/0")
         if "s" in opts:
             if opts["s"] in ["on", "1", "yes"]:
                 config["sort_units"] = units.sortunits = True
@@ -1043,7 +1053,7 @@ class imks_magic(Magics):
                 config["sort_units"] = units.sortunits = False
                 imks_print("Compound units are not sorted")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use on/1 or off/0")        
         if "k" in opts:
             if opts["k"] in ["on", "1", "yes"]:
                 config["prefix_only"] = units.prefixonly = True
@@ -1052,7 +1062,7 @@ class imks_magic(Magics):
                 config["prefix_only"] = units.prefixonly = False
                 imks_print("Prefix without unit not accepted")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use on/1 or off/0")        
         if "t" in opts:
             if opts["t"] in ["on", "1", "yes"]:
                 config["unit_tolerant"] = units.tolerant = True
@@ -1065,15 +1075,11 @@ class imks_magic(Magics):
         if "c" in opts:
             if opts["c"] in ["math", "mpmath", "fpmath", "numpy",
                              "umath", "soerp", "mcerp"]:
-                try:
-                    change_engine(self.shell, opts["c"])
-                    imks_print("iMKS math engine: %s.  Consider doing a %%reset." %
-                               opts["c"])
-                except ModuleNotFoundError:
-                    pass
+                globals()[opts["c"] + "_engine"](globals())
             else:
                 print("Incorrect argument: must be math, mpmath, fpmath, numpy, umath, soerp, or mcerp.")
                 return
+            imks_print("iMKS math engine: %s.  Consider doing a %%reset." % opts["c"])
             config["engine"] = opts["c"]
         if "o" in opts:
             if opts["o"] == "0":
@@ -1092,7 +1098,7 @@ class imks_magic(Magics):
             self.shell.user_ns["mp"].dps = config["digits"] = int(opts["p"])
             imks_print("Precision set to %d digits" % config["digits"])
         if "m" in opts or "M" in opts:
-            from . import units_mpmath
+            import units_mpmath
             if "m" in opts:
                 config["min_fixed"] = units_mpmath.min_fixed = \
                     eval(opts["m"], self.shell.user_ns)
@@ -1102,6 +1108,7 @@ class imks_magic(Magics):
             imks_print("Fixed range:", units_mpmath.min_fixed, ":", \
                         units_mpmath.max_fixed)
         if "d" in opts:
+            import calendars
             calnames = [c.calendar for c in calendars.calendars]
             if opts["d"] in calnames:
                 config["default_calendar"] = opts["d"]
@@ -1111,11 +1118,7 @@ class imks_magic(Magics):
 
     @line_magic
     def load_imks(self, arg):
-        """Load one ore more imks modules.
-
-        The modules are searched first in the current directory, then in the ~/.imks
-        directory, and finally in the /script directory under the package location. The
-        latter location contains the standard modules distributed with imks."""
+        """Load one ore more imks modules."""
         import os, os.path
         ip = self.shell
         modules = arg.split(",")
@@ -1123,39 +1126,26 @@ class imks_magic(Magics):
             code = None
             filename = module.strip()
             if os.path.splitext(filename)[1] == "":
-                filename += ".imks"
+                filename += ".txt"
             try:
                 code = ip.find_user_code(filename, py_only=True)
             except:
                 if not os.path.isabs(filename):
                     try:
-                        path = os.path.join(os.environ["HOME"], ".imks",
-                                            filename)
-                        code = ip.find_user_code(path, py_only=True)
+                        filename = os.path.join(os.environ["HOME"], ".imks",
+                                                filename)
+                        code = ip.find_user_code(filename, py_only=True)
                     except:
-                        try:
-                            path = os.path.dirname(units.__file__)
-                            path = os.path.join(path, "scripts", filename)
-                            code = ip.find_user_code(path, py_only=True)
-                        except:
-                            pass
+                        pass
             if code:
                 ip.run_cell(code)
             else:
                 raise ImportError("Could not find imks file named %s" %
                                   module.strip())
 
-            
     @line_magic
     def load_imks_ext(self, arg):
         """Load one ore more imks extensions.
-
-        Usage:
-          %load_imks_ext [-s] extension1 [, extension2...]
-
-        If the -s flag is used the entire operation is silent; otherwise, a list of 
-        newly defined symbols is displayed. If no extension is provide, the list of
-        all extensions loaded so far is printed.
 
         Currently, the following extensions are recognized:
           calendars     allow the use of multiple calendars
@@ -1168,54 +1158,48 @@ class imks_magic(Magics):
           jpl           load planetary data from the SSD JPL database
           wiki          search through Wikipedia infoboxes"""
         import os, os.path
-        global extensions
         ip = self.shell
         oldkeys = set(ip.user_ns.keys())
         oldunits = set(units.units.keys())
         exts = arg.split()
         silent = False
-        if len(exts) == 0:
-            from textwrap import wrap
-            print("\n  ".join(wrap("Extensions loaded: %s." %
-                                       (u", ".join(sorted(extensions))))))
-            return
         for ext in exts:
             if ext == "-s": silent = True
-            else:
-                extensions.add(ext)
-                if ext == "calendars":
-                    global config
-                    calendars.loadcalendars(ip)
-                    config["default_calendar"] = "Gregorian"
-                elif ext == "geolocation":
-                    from . import geolocation
-                    ip.user_ns["get_geolocation"] = geolocation.get_geolocation
-                    ip.user_ns["set_geolocation"] = geolocation.set_geolocation
-                elif ext == "constants":
-                    from . import constants
-                    constants.loadconstants(engine=eval(engine, self.shell.user_ns))
-                    self.shell.user_ns["const"] = constants.constants
-                elif ext == "jpl":
-                    from . import jpl
-                    planets, moons = jpl.loadJPLconstants()
-                    self.shell.user_ns["planets"] = planets
-                    self.shell.user_ns["moons"] = moons
-                    self.shell.user_ns["minorplanet"] = \
-                      lambda name: jpl.load_minor(name)
-                elif ext == "currencies":
-                    if "openexchangerates_id" in ip.user_ns:
-                        app_id = self.shell.user_ns["openexchangerates_id"]
-                    else: app_id = ""
-                    currencies.currencies(app_id)
-                elif ext == "wiki" or ext == "wikipedia":
-                    from . import wiki
-                    wiki.ip = self.shell
-                    wiki.unit_transformer = unit_transformer
-                    wiki.command_transformer = command_transformer
-                    self.shell.user_ns["wiki"] = wiki.wiki
-                else:
-                    extensions.discard(ext)
-                    print("Unknown extension `%s'." % ext)
+            elif ext == "calendars":
+                global config
+                calendars.loadcalendars(ip)
+                config["default_calendar"] = "Gregorian"
+            elif ext == "geolocation":
+                import geolocation
+                ip.user_ns["get_geolocation"] = geolocation.get_geolocation
+                ip.user_ns["set_geolocation"] = geolocation.set_geolocation
+            elif ext == "constants":
+                import constants
+                constants.loadconstants(engine=eval(engine,
+                                                        self.shell.user_global_ns,
+                                                        self.shell.user_ns))
+                self.shell.user_ns["const"] = constants.constants
+            elif ext == "jpl":
+                import jpl
+                planets, moons = jpl.loadJPLconstants(engine=eval(engine,
+                                                        self.shell.user_global_ns,
+                                                        self.shell.user_ns))
+                self.shell.user_ns["planets"] = planets
+                self.shell.user_ns["moons"] = moons
+                self.shell.user_ns["minorplanet"] = \
+                    lambda name: jpl.load_minor(name)
+            elif ext == "currencies":
+                if ip.user_ns.has_key("openexchangerates_id"):
+                    app_id = self.shell.user_ns["openexchangerates_id"]
+                else: app_id = ""
+                currencies.currencies(app_id)
+            elif ext == "wiki" or ext == "wikipedia":
+                import wiki
+                wiki.ip = self.shell
+                wiki.unit_transformer = unit_transformer
+                wiki.command_transformer = command_transformer
+                self.shell.user_ns["wiki"] = wiki.wiki
+            else: q("Unknown extension `%s'." % ext)
         newkeys = set(ip.user_ns.keys())
         newunits = set(units.units.keys())
         if not silent:
@@ -1287,10 +1271,10 @@ class imks_magic(Magics):
 
         See also:
           %delprefix, %newunit, %delunit."""
-        from io import StringIO
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
+        print("PREFIX: %s", ", ".join(names))
         tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
         walue = self.shell.ev(tokenize.untokenize(
             unit_transformer([t for t in tokens])))
@@ -1325,7 +1309,6 @@ class imks_magic(Magics):
         > %newunit K=(0[K], 1[K])
 
         A unit can be deleted using the %delunit magic."""
-        from io import StringIO
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
@@ -1395,228 +1378,6 @@ class imks_magic(Magics):
             units.newsystem(name.strip(), values, doc=doc)
         return
         
-    @line_magic
-    def delsystem(self, arg=""):
-        """Delete a unit system previously defined using the %newsystem magic.
-
-           Usage:
-             %delsystem name"""
-        units.delsystem(arg.strip())
-        return
-
-    @line_magic
-    def defaultsystem(self, arg):
-        """Set the default unit system for value representations.
-        
-        Usage:
-          %defaultsystem system
-
-        where system is a previously define unit system or a list of units
-        separated by | as in %newsystem.  Do not use any argument to unset the
-        default unit system."""
-        if len(arg) == 0:
-            units.defaultsystem = None
-        else:
-            units.defaultsystem = units.System(*[v.strip("[] ")
-                                                 for v in arg.split("|")])
-            units.cachedat = {}
-
-    @line_magic
-    def let(self, arg):
-        """Define a variable.
-
-        Usage:
-          %let name=[aliases=]value [# "Documentation string"]
-
-        The advantage of using let over a simple assignment is that the entire
-        variable definition is retained and can be queried when inspecting the
-        variable."""
-        from io import StringIO
-        command, doc = self.split_command_doc(arg)
-        tmp = command.split("=")
-        names, value = tmp[:-1], tmp[-1]
-        tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
-        evalue = self.shell.ev(tokenize.untokenize(
-            unit_transformer([t for t in tokens])))
-        evalue = evalue & units.Doc(doc, value)
-        try:
-            evalue.__source__ = value.strip()
-        except AttributeError:
-            pass
-        for name in names:
-            self.shell.user_ns[name.strip()] = evalue
-        return
-            
-    @line_magic
-    def lazy(self, arg):
-        """Define a general lazy value in terms of an expression.
-
-        Usage:
-          %lazy var=[aliases=]=expr  [# "Documentation string"]
-
-        This magic defines the variable var to be the result of expression.  In
-        contrast to standard variables, however, expr is not computed immediately:
-        rather, it is evaluated only when var is used or displayed.
-
-        This magic can be used similarly to %lazyvalue: the difference is that %lazy
-        support any kind of variable, while %lazyvalue is limited to simple values.
-        The mechanism used is also different: %lazy defines var to be a function with
-        no argument, and include it to an internal list used to automatically add ()
-        when parsing the input line; %lazyvalue uses the LazyValue python object (a
-        child of Value)."""
-        from io import StringIO
-        global lazyvalues
-        command, doc = self.split_command_doc(arg)
-        command = command.replace('"', '\\"').replace("'", "\\'")
-        opts, command = self.parse_options(command, "1u")
-        tmp = command.split("=")
-        names, source = tmp[:-1], tmp[-1]
-        lazyvalues.difference_update([name.strip() for name in names])
-        value = "lambda : " + source
-        tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
-        s = tokenize.untokenize(unit_transformer(list(tokens)))
-        value = self.shell.ev(s)
-        for name in names:
-            self.shell.user_ns[name.strip()] = value & units.Doc(doc, source)
-            lazyvalues.add(name.strip())
-
-    @line_magic
-    def dellazy(self, arg):
-        """Delete a previously defined lazy variable.
-
-        Usage:
-          %dellazy var
-
-        This magic needs to be used only for variables defined through %lazy, and
-        not for the ones defined through %lazyvalue (which can be deleted with the
-        usual python del command, or by just overwriting them)."""
-        global lazyvalues
-        lazyvalues.difference_update([arg.strip()])
-        del self.shell.user_ns[arg.strip()]
-            
-    @line_magic
-    def lazyvalue(self, arg):
-        """Define a variable lazily in terms of an expression.
-
-        Usage:
-          %lazyvalue [options] var=[aliases=]=expr  [# "Documentation string"]
-
-        This magic defines the variable var to be the value of expression.  In contrast
-        to standard variables, however, expr is not computed immediately: rather, it is
-        evaluated only when var is used or displayed.  Among other uses, this allows
-        one to define variables with a arbitrary precision (in the sense that the
-        precision used when calculating the variable is the one set at real time), or
-        variables that depend dynamically on other external variables.  Note that this
-        magic only works for simple values: for more complicated combination, please
-        use the %lazy magic.
-
-        Options:
-          -u   Evaluate the expression unit each time (by default, the value of the
-               expression is recomputed each time it is needed, but the unit is
-               computed only once, the first time variable is calculated)
-          -1   Evaluate the entire expression (unit and value) only once, the first
-               time the variable is calculated
-
-        See also %lazy, %lazyunit, and %lazyprefix."""
-        from io import StringIO
-        command, doc = self.split_command_doc(arg)
-        command = command.replace('"', '\\"').replace("'", "\\'")
-        opts, command = self.parse_options(command, "1u")
-        tmp = command.split("=")
-        names, value = tmp[:-1], tmp[-1]
-        value = "lambda : " + value
-        tokens = tokenize.generate_tokens(StringIO(value.strip()).readline)
-        value = self.shell.ev(tokenize.untokenize(
-            unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(value, once="1" in opts, unit_once="u" not in opts)
-        for name in names:
-            self.shell.user_ns[name.strip()] = lvalue
-
-    @line_magic
-    def lazyprefix(self, arg):
-        """Define a prefix lazily in terms of an expression.
-
-        Usage:
-          %lazyprefix [options] var=[aliases=]=expr  [# "Documentation string"]
-
-        Similar to %lazy, but used to define a lazy prefix (see also %lazyunit).
-
-        Options:
-          -1   Evaluate the entire expression only once, the first time the prefix is
-               used"""
-        from io import StringIO
-        command, doc = self.split_command_doc(arg)
-        opts, command = self.parse_options(command, "1")
-        tmp = command.split("=")
-        names, value = tmp[:-1], tmp[-1]
-        walue = "lambda : " + value
-        tokens = tokenize.generate_tokens(StringIO(walue.strip()).readline)
-        walue = self.shell.ev(tokenize.untokenize(
-            unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(walue, once="1" in opts, unit_once=True)
-        for name in names:
-            self.checkvalidname(name)
-            units.newprefix(name.strip(), lvalue, doc=doc, source=value.strip())
-
-    @line_magic
-    def lazyunit(self, arg):
-        """Define a unit lazily in terms of an expression.
-
-        Usage:
-          %lazyunit [options] var=[aliases=]=expr  [# "Documentation string"]
-
-        Similar to %lazy, but used to define a lazy unit (see also %lazyprefix).
-
-        Options:
-          -1   Evaluate the entire expression only once, the first time the unit is
-               used"""
-        from io import StringIO
-        command, doc = self.split_command_doc(arg)
-        opts, command = self.parse_options(command, "1")
-        tmp = command.split("=")
-        names, value = tmp[:-1], tmp[-1]
-        walue = "lambda : " + value
-        tokens = tokenize.generate_tokens(StringIO(walue.strip()).readline)
-        walue = self.shell.ev(tokenize.untokenize(
-            unit_transformer([t for t in tokens])))
-        lvalue = units.LazyValue(walue, once="1" in opts, unit_once=True)
-        for name in names:
-            self.checkvalidname(name)
-            units.newunit(name.strip(), lvalue, doc=doc, source=value.strip())
-
-    @line_magic
-    def newtransformer(self, arg):
-        """Define a new input transformer.
-
-           Usage:
-             %newtransformer name="regex":transformer
-
-           where name is the name of the new input transformer (only used as a key for
-           %deltransformer), regexp is a regular expression using the named groups, and
-           transformer is a function used to perform the input transformation."""
-        command, doc = self.split_command_doc(arg)
-        i = command.find("=")
-        if i < 0: raise SyntaxError("equal sign not found")
-        name, value = command[0:i], command[i+1:]
-        quotes = re.split(r'(?<!\\)\"', value)
-        regex = quotes[1]
-        trans = quotes[2]
-        if trans[0] != ':': raise SyntaxError("column sign not found")
-        cregex = re.compile(regex)
-        self.checkvalidname(name)
-        config["intrans"][name] = (cregex, trans[1:].strip()) & \
-            units.Doc(doc, regex + " : " + trans[1:])
-        return
-
-    @line_magic
-    def deltransformer(self, arg=""):
-        """Delete an input transformer previously defined using %newtransformer.
-
-           Usage:
-             %deltransformer name"""
-        del config["intrans"][arg.strip()]
-        return
-
     @line_magic
     def delsystem(self, arg=""):
         """Delete a unit system previously defined using the %newsystem magic.
