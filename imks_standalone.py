@@ -457,18 +457,18 @@ from traitlets import List, Int, Any, Unicode, CBool, Bool, Instance
 from collections import OrderedDict as ODict
 import re
 from unidecode import unidecode
-from ._version import __version__, __date__
-from . import units
-from . import currencies
-from . import calendars
-from .transformers import command_transformer, unit_transformer, transform
+from imks._version import __version__, __date__
+from imks import units
+from imks import currencies
+from imks import calendars
+from imks.transformers import command_transformer, unit_transformer, transform
 
 try:
     from objproxies import CallbackProxy, LazyProxy
 except:
     from peak.util.proxies import CallbackProxy, LazyProxy
 
-from .config import *
+from imks.config import *
 
 ######################################################################
 # Code
@@ -476,7 +476,7 @@ from .config import *
 magic = None
 
 def load_imks(shell=None):
-    from .magics import imks_magic, change_engine
+    from imks.magics import imks_magic, change_engine
     global config, magic
 
     # make sure we have a ~/.imks directory
@@ -494,11 +494,11 @@ def load_imks(shell=None):
     magic = imks_magic(shell=shell)
         
     # load symbols
-    units.load_variables(magic.shell.user_ns)
+    units.load_variables(magic.shell.locals)
 
     # math engine
     config["engine"] = "math"
-    change_engine(magic.shell.user_ns, config["engine"])
+    change_engine(magic.shell.locals, config["engine"])
 
     # input transformers
     config["intrans"] = {}
@@ -507,10 +507,10 @@ def load_imks(shell=None):
     magic.shell.ex("from __future__ import division")
 
     # save current ipython global variables
-    config['initial_status'] = magic.shell.user_ns.keys()
+    config['initial_status'] = magic.shell.locals.keys()
 
     # copy the local namespace to the global one
-    magic.shell.user_global_ns.update(magic.shell.user_ns)
+    # magic.shell.user_global_ns.update(magic.shell.user_ns)
     
     # run command-line options
     #if "InteractiveShellApp" in ip.config and \
@@ -532,3 +532,8 @@ def load_imks(shell=None):
 
     return magic
 
+
+if __name__ == "__main__":
+    imks = load_imks()
+    imks.shell.interact(banner="", exitmsg="")
+    
