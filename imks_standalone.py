@@ -535,5 +535,10 @@ def load_imks(shell=None):
 
 if __name__ == "__main__":
     imks = load_imks()
-    imks.shell.interact(banner="", exitmsg="")
+    try:
+        imks.shell.interact(banner="", exitmsg="")
+    except TypeError:
+        # This line is for Python 2.7
+        imks.shell.interact(banner="")
+        
     

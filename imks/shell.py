@@ -7,7 +7,7 @@ from .transformers import command_transformer, unit_transformer, transform, magi
 
 class Shell(InteractiveConsole):
     def __init__(self, locals=None, filename="<console>"):
-        super(Shell, self).__init__(locals=locals, filename=filename)
+        InteractiveConsole.__init__(self, locals=locals, filename=filename)
         self.locals.update({"run_magic": lambda s: self.run_magic(s)})
         self.user_ns = self.locals
 
@@ -70,7 +70,7 @@ class Shell(InteractiveConsole):
             newcode = tokenize.untokenize(newtokens)
         except tokenize.TokenError:
             return True
-        return super(Shell, self).runsource(newcode, filename, symbol)
+        return InteractiveConsole.runsource(self, newcode, filename, symbol)
             
 import sys, os, shlex, getopt
 
