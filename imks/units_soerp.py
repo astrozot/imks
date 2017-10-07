@@ -129,36 +129,36 @@ def ufloat_repr_latex(self):
 ######################################################################
 # Load and unload functions
 
-def load(ip):
+def load(namespace):
     "Load all math defined functions, using when appropriate modified versions."
     globs = globals()
     names = ["Beta", "Chi2", "Exp", "F", "Gamma", "LogN", "N", "T", "Tri",
              "Weib"]
     for name in names:
         if name[0] != '_':
-            ip.user_ns[name] = globs.get(name, mconvert(getattr(soerp, name)))
+            namespace[name] = globs.get(name, mconvert(getattr(soerp, name)))
     names = dir(umath)
     for name in names:
         if name[0] != '_':
-            ip.user_ns[name] = globs.get(name, mconvert(getattr(umath, name)))
+            namespace[name] = globs.get(name, mconvert(getattr(umath, name)))
     soerp.UncertainVariable.__repr__ = soerp.UncertainFunction.__repr__ = \
       ufloat_repr
     soerp.UncertainVariable.__str__ = soerp.UncertainFunction.__str__ = \
       ufloat_repr
     soerp.UncertainVariable._repr_latex_ = \
       soerp.UncertainFunction._repr_latex_ = ufloat_repr_latex
-    ip.user_ns["fraction"] = fraction
-    ip.user_ns["ufloat"] = ufloat
-    ip.user_ns["pi"] = math.pi
-    ip.user_ns["e"] = math.e
+    namespace["fraction"] = fraction
+    namespace["ufloat"] = ufloat
+    namespace["pi"] = math.pi
+    namespace["e"] = math.e
 
-def unload(ip):
+def unload(namespace):
     "Unload all math defined functions"
     names = dir(soerp) + dir(umath) + ["fraction", "float", "pi", "e"]
     for name in names:
         if name[0] != '_':
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass
 

@@ -6,6 +6,11 @@ import math
 from .units import Value
 from . import units
 
+try:
+    AffineScalarFunc = uncertainties.core.AffineScalarFunc
+except:
+    AffineScalarFunc = uncertainties.AffineScalarFunc
+
 def umathdoc(f):
     "Decorator to copy the uncertainties.umath __doc__ string."
     f.__doc__ = getattr(umath, f.__name__, {"__doc__": ""}).__doc__
@@ -107,7 +112,7 @@ def ufloat(s):
         return uncertainties.ufloat_fromstr(s)
     else: return float(s)
 
-ufloat_str = uncertainties.AffineScalarFunc.__str__
+ufloat_str = AffineScalarFunc.__str__
 def ufloat_repr(self):
     if units.showerrors == 0: return str(self.nominal_value)
     elif units.showerrors == 1:
@@ -129,29 +134,29 @@ def ufloat_repr_latex(self):
 ######################################################################
 # Load and unload functions
 
-def load(ip):
+def load(namespace):
     "Load all math defined functions, using when appropriate modified versions."
+    global AffineScalarFunc
     names = dir(umath)
     globs = globals()
     for name in names:
         if name[0] != '_':
-            ip.user_ns[name] = globs.get(name, mconvert(getattr(umath, name)))
-    ip.user_ns["fraction"] = fraction
-    ip.user_ns["ufloat"] = ufloat
-    ip.user_ns["pi"] = math.pi
-    ip.user_ns["e"] = math.e
-    uncertainties.AffineScalarFunc.__repr__ = uncertainties.AffineScalarFunc.__str__
-    uncertainties.AffineScalarFunc.__repr__ = ufloat_repr
-    uncertainties.AffineScalarFunc.__str__ = ufloat_repr
-    uncertainties.AffineScalarFunc._repr_latex_ = ufloat_repr_latex
+            namespace[name] = globs.get(name, mconvert(getattr(umath, name)))
+    namespace["fraction"] = fraction
+    namespace["ufloat"] = ufloat
+    namespace["pi"] = math.pi
+    namespace["e"] = math.e
+    AffineScalarFunc.__repr__ = ufloat_repr
+    AffineScalarFunc.__str__ = ufloat_repr
+    AffineScalarFunc._repr_latex_ = ufloat_repr_latex
 
-def unload(ip):
+def unload(namespace):
     "Unload all math defined functions"
     names = dir(umath) + ["fraction", "ufloat", "pi", "e"]
     for name in names:
         if name[0] != '_':
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass
 

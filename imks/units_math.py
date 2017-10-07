@@ -98,22 +98,22 @@ def ufloat(s):
 ######################################################################
 # Load and unload functions
 
-def load(ip):
+def load(namespace):
     "Load all math defined functions, using when appropriate modified versions."
     names = dir(math)
     globs = globals()
     for name in names:
         if name[0] != '_':
-            ip.user_ns[name] = globs.get(name, getattr(math, name))
-    ip.user_ns["fraction"] = fraction
-    ip.user_ns["ufloat"] = ufloat
+            namespace[name] = globs.get(name, getattr(math, name))
+    namespace["fraction"] = fraction
+    namespace["ufloat"] = ufloat
 
-def unload(ip):
+def unload(namespace):
     "Unload all math defined functions"
     names = dir(math) + ["fraction", "ufloat"]
     for name in names:
         if name[0] != '_':
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass

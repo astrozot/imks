@@ -188,7 +188,7 @@ def Value_getattr(self, attr):
     else:
         raise AttributeError
 
-def load(ip):
+def load(namespace):
     "Load all numpy defined functions, using when appropriate modified versions."
     names = dir(numpy)
     globs = globals()
@@ -196,18 +196,18 @@ def load(ip):
     for name in names:
         f = getattr(numpy, name)
         if type(f) == numpy.ufunc:
-            ip.user_ns[name] = globs.get(name, f)
-    ip.user_ns["numpy"] = numpy
-    ip.user_ns["ufloat"] = ufloat
+            namespace[name] = globs.get(name, f)
+    namespace["numpy"] = numpy
+    namespace["ufloat"] = ufloat
 
-def unload(ip):
+def unload(namespace):
     "Unload all numpy defined functions"
     names = dir(numpy) + ["numpy", "ufloat"]
     for name in names:
         f = getattr(numpy, name)
         if type(f) == numpy.ufunc:
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass
         

@@ -7,6 +7,7 @@ except:
     error = request
 
 from . import units
+from .config import *
 
 class Constants(dict):
     "A constant dictionary taken from http://physics.nist.gov/cuu/Constants"
@@ -19,11 +20,11 @@ class Constants(dict):
     def __getitem__(self, key):
         x = dict.__getitem__(self, key)
         if type(x) is units.Value: return x
-        engine = get_ipython().user_ns["ufloat"]
+        engine_func = getattr(internals["engine_module"], internals["engine"])
         try:
             if x[1] != "(exact)": v = "%s +/- %s" % x[0:2]
             else: v = str(x[0])
-            v = units.Value(engine(v), x[2])
+            v = units.Value(engine_func(v), x[2])
             doc = "%s\n\nDefined in the NIST database as: " % key
             if x[1] != "(exact)": doc += "(%s +/- %s) [%s]" % (x[0], x[1], x[2])
             else: doc += "%s [%s] (exact)" % (x[0], x[2])

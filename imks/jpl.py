@@ -1,6 +1,7 @@
-from .units import Value, System
 from lxml import html
 import requests
+from .units import Value, System
+from .config import *
 
 planet_table = """
 Mercury   0.38709927      0.20563593      7.00497902      252.25032350     77.45779628     48.33076593
@@ -30,12 +31,12 @@ def genitive(name):
 def JPLconst(value, error, unit, name="", absolute=False):
     try:
         dummy = float(value) + float(error if error.strip() != "" else "0")
-        engine = get_ipython().user_ns["ufloat"]
+        engine_func = getattr(internals["engine_module"], internals["engine"])
         if unit == "days" or unit == "d": unit = "day"
         if error: value = value + " +/- " + error
-        if unit: v = Value(engine(value), unit, original=True,
+        if unit: v = Value(engine_func(value), unit, original=True,
                            absolute=absolute) 
-        else: v = Value(engine(value), absolute=absolute)
+        else: v = Value(engine_func(value), absolute=absolute)
         doc = "%s\n\nConstant defined in the SSD JPL database as: " % name
         if error: doc += "(%s +/- %s) [%s]" % (value, error, unit)
         else: doc += "%s [%s]" % (value, unit)

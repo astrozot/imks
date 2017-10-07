@@ -1057,7 +1057,6 @@ def newbasecurrency(name, doc=""):
     baseunits.append(name)
     cachedat = {}
 
-
 def newprefix(name, value, doc="", source=""):
     global prefixes, cachedat
     v = Value(value)
@@ -1162,30 +1161,30 @@ cachedat = {}
 newprefix("", 1)
 user_ns = {}
 
-def load_variables(ip):
+def load_variables(namespace):
     global baseunits, units, prefixes, systems, formats, defaultsystem, user_ns
-    ip.user_ns['Doc'] = Doc
-    ip.user_ns['Unit'] = Unit
-    ip.user_ns['Value'] = Value
-    ip.user_ns['System'] = System
-    ip.user_ns['UnitError'] = UnitError
-    ip.user_ns['baseunits'] = baseunits
-    ip.user_ns['units'] = units
-    ip.user_ns['prefixes'] = prefixes
-    ip.user_ns['systems'] = systems
-    ip.user_ns['formats'] = formats
-    ip.user_ns['defaultsystem'] = defaultsystem
-    user_ns = ip.user_ns
+    namespace['Doc'] = Doc
+    namespace['Unit'] = Unit
+    namespace['Value'] = Value
+    namespace['System'] = System
+    namespace['UnitError'] = UnitError
+    namespace['baseunits'] = baseunits
+    namespace['units'] = units
+    namespace['prefixes'] = prefixes
+    namespace['systems'] = systems
+    namespace['formats'] = formats
+    namespace['defaultsystem'] = defaultsystem
+    user_ns = namespace
 
-def save_variables(ip):
+def save_variables(namespace):
     global baseunits, units, prefixes, systems, formats, defaultsystem, user_ns
-    baseunits = ip.user_ns['baseunits']
-    units = ip.user_ns['units']
-    prefixes = ip.user_ns['prefixes']
-    systems = ip.user_ns['systems']
-    formats = ip.user_ns['formats']
-    defaultsystem = ip.user_ns['defaultsystem']
-    user_ns = ip.user_ns
+    baseunits = namespace['baseunits']
+    units = namespace['units']
+    prefixes = namespace['prefixes']
+    systems = namespace['systems']
+    formats = namespace['formats']
+    defaultsystem = namespace['defaultsystem']
+    user_ns = namespace
     
 def reset():
     global baseunits, units, prefixes, systems, formats, defaultsystem, \

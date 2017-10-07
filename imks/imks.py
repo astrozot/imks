@@ -478,21 +478,7 @@ try:
 except:
     from peak.util.proxies import CallbackProxy, LazyProxy
 
-config = {"banner": True,
-          "enabled": True,
-          "auto_brackets": True,
-          "standard_exponent": True,
-          "engine": "",
-          "sort_units": units.sortunits,
-          "unit_tolerant": units.tolerant,
-          "prefix_only": units.prefixonly,
-          "show_errors": units.showerrors,
-          "digits": 15,
-          "min_fixed": None,
-          "max_fixed": None}
-engine = "ufloat"
-engine_module = None
-extensions = set()
+from .config import *
 
 ######################################################################
 # Magic functions
@@ -638,7 +624,7 @@ class imks_magic(Magics):
                     change_engine(self.shell, opts["c"])
                     imks_print("iMKS math engine: %s.  Consider doing a %%reset." %
                                opts["c"])
-                except ModuleNotFoundError:
+                except ImportError:
                     pass
             else:
                 print("Incorrect argument: must be math, mpmath, fpmath, numpy, umath, soerp, or mcerp.")
@@ -737,7 +723,7 @@ class imks_magic(Magics):
           jpl           load planetary data from the SSD JPL database
           wiki          search through Wikipedia infoboxes"""
         import os, os.path
-        global extensions
+        global internals
         ip = self.shell
         oldkeys = set(ip.user_ns.keys())
         oldunits = set(units.units.keys())
@@ -746,12 +732,12 @@ class imks_magic(Magics):
         if len(exts) == 0:
             from textwrap import wrap
             print("\n  ".join(wrap("Extensions loaded: %s." %
-                                       (u", ".join(sorted(extensions))))))
+                            (u", ".join(sorted(internals["extensions"]))))))
             return
         for ext in exts:
             if ext == "-s": silent = True
             else:
-                extensions.add(ext)
+                internals["extensions"].add(ext)
                 if ext == "calendars":
                     global config
                     calendars.loadcalendars(ip)
@@ -762,7 +748,8 @@ class imks_magic(Magics):
                     ip.user_ns["set_geolocation"] = geolocation.set_geolocation
                 elif ext == "constants":
                     from . import constants
-                    constants.loadconstants(engine=eval(engine, self.shell.user_ns))
+                    constants.loadconstants(engine=eval(internals["engine"],
+                                                        self.shell.user_ns))
                     self.shell.user_ns["const"] = constants.constants
                 elif ext == "jpl":
                     from . import jpl
@@ -783,7 +770,7 @@ class imks_magic(Magics):
                     wiki.command_transformer = command_transformer
                     self.shell.user_ns["wiki"] = wiki.wiki
                 else:
-                    extensions.discard(ext)
+                    internals["extensions"].discard(ext)
                     print("Unknown extension `%s'." % ext)
         newkeys = set(ip.user_ns.keys())
         newunits = set(units.units.keys())
@@ -1354,7 +1341,7 @@ class imks_magic(Magics):
         Usage:
           %pickle [-p protocol] filename
         """
-        global config, engine_module
+        global config, internals
         import pickle 
 
         opts, us = self.parse_options(args, ":p")
@@ -1365,9 +1352,9 @@ class imks_magic(Magics):
             return
         f = open(us[0], "wb")
         # Unload the engine, to remove engine-related variables
-        if engine_module:
-            engine_module.unload(self.shell)
-            engine_module = None
+        if internals["engine_module"]:
+            internals["engine_module"].unload(self.shell.user_ns)
+            internals["engine_module"] = None
         # Pickle all variables we can
         fails = []
         d = {}
@@ -1382,7 +1369,7 @@ class imks_magic(Magics):
         pickle.dump(d, f, protocol=protocol)
         f.close()
         # Reload the engine
-        globals()[config["engine"] + "_engine"](self.shell)
+        change_engine(ip, config["engine"])
         print("Done.")
 
         
@@ -1435,9 +1422,9 @@ class imks_magic(Magics):
         gc.collect()
         # load new symbols
         units.reset()
-        units.load_variables(ip)
+        units.load_variables(ip.user_ns)
         # math engine: this is not reset!
-        globals()[config["engine"] + "_engine"](ip)
+        change_engine(ip, config["engine"])
         # input transformers
         config["intrans"] = {}
         # active true float division
@@ -1557,9 +1544,10 @@ def unit_create(substatus, queue, brackets=False):
                    offset
 
 def unit_transformer(tokens):
-    global config
+    global config, internals
     if not config["enabled"]: return tokens
-
+    engine = internals["engine"]
+    
     # fix multiline issue
     tokens = list(filter(lambda t: t[0] != tokenize.NL, tokens))
 
@@ -1970,21 +1958,22 @@ input_unit_transformer = TokenInputTransformer.wrap(unit_transformer)
 from importlib import import_module
 
 def change_engine(ip, newengine):
-    global engine, engine_module
+    global internals
     try:
         module = import_module("imks.units_" + newengine)
     except:
         print("Cannot load engine %s" % newengine)
-        raise ModuleNotFoundError
-    if engine_module: engine_module.unload(ip)
+        raise ImportError
+    if internals["engine_module"]:
+        internals["engine_module"].unload(ip.user_ns)
     try:
-        module.load(ip)
-        engine = "ufloat"
+        module.load(ip.user_ns)
+        internals["engine"] = "ufloat"
     except:
         print("Cannot load engine %s" % newengine)
-        engine_module.load(ip)
-        raise ModuleNotFoundError
-    engine_module = module    
+        internals["engine_module"].load(ip.user_ns)
+        raise ImportError
+    internals["engine_module"] = module    
 
 def imks_import(name, globals=None, locals=None, fromlist=None):
     import imp
@@ -2258,7 +2247,7 @@ def load_ipython_extension(ip):
         s.python_line_transforms.extend([input_unit_transformer()])
 
     # load symbols
-    units.load_variables(ip)
+    units.load_variables(ip.user_ns)
 
     # math engine
     config["engine"] = "math"

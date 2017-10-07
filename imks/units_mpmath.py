@@ -226,21 +226,21 @@ def new_mpf_str(s):
     return to_str(s._mpf_, s.context._str_digits,
                   min_fixed=min_fixed, max_fixed=max_fixed)
 
-def load(ip):
+def load(namespace):
     global old_mpf_str, old_mpc_str
     "Load all mpmath defined functions, using when appropriate modified versions."
     names = dir(mpmath)
     globs = globals()
     for name in names:
         if hasattr(mpmath.mp, name) or name == 'mp':
-            ip.user_ns[name] = globs.get(name, getattr(mpmath, name))
+            namespace[name] = globs.get(name, getattr(mpmath, name))
     x = mpmath.mpf(1)
     old_mpf_str = x.__class__.__str__
     x.__class__.__str__ = new_mpf_str
-    ip.user_ns["ufloat"] = ufloat
-    ip.user_ns["mp"].pretty = True
+    namespace["ufloat"] = ufloat
+    namespace["mp"].pretty = True
 
-def unload(ip):
+def unload(namespace):
     "Unload all mpmath defined functions"
     global old_mpf_str, old_mpc_str
     names = dir(mpmath) + ["ufloat"]
@@ -250,7 +250,7 @@ def unload(ip):
     for name in names:
         if hasattr(mpmath.mp, name):
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass
         

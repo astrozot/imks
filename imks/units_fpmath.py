@@ -195,25 +195,25 @@ def ufloat(s):
 ######################################################################
 # Load and unload functions
 
-def load(ip):
+def load(namespace):
     "Load all mpmath defined functions, using when appropriate modified versions."
     names = dir(mpmath)
     globs = globals()
     for name in names:
         if hasattr(mpmath.fp, name):
-            ip.user_ns[name] = globs.get(name, getattr(mpmath.fp, name))
-    ip.user_ns["fp"] = mpmath.fp
-    ip.user_ns["fraction"] = fraction
-    ip.user_ns["ufloat"] = ufloat
-    ip.user_ns["fp"].pretty = True
+            namespace[name] = globs.get(name, getattr(mpmath.fp, name))
+    namespace["fp"] = mpmath.fp
+    namespace["fraction"] = fraction
+    namespace["ufloat"] = ufloat
+    namespace["fp"].pretty = True
 
-def unload(ip):
+def unload(namespace):
     "Unload all mpmath defined functions"
     names = dir(mpmath) + ["fraction", "fp", "ufloat"]
     for name in names:
         if hasattr(mpmath.mp, name):
             try:
-                del ip.user_ns[name]
+                del namespace[name]
             except KeyError:
                 pass
         
