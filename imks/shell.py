@@ -1,24 +1,26 @@
 import tokenize
 from io import StringIO, open
+from code import InteractiveConsole
 
 from .config import *
 from .transformers import command_transformer, unit_transformer, transform, magic_transformer
 
-class Shell(object):
-    def __init__(self):
-        self.user_ns = {}
-        self.user_global_ns = {"run_magic": lambda s: self.run_magic(s)}
+class Shell(InteractiveConsole):
+    def __init__(self, locals=None, filename="<console>"):
+        super(Shell, self).__init__(locals=locals, filename=filename)
+        self.locals.update({"run_magic": lambda s: self.run_magic(s)})
+        self.user_ns = self.locals
 
     def ev(self, expr):
         """Evaluate python expression expr in user namespace.
 
         Returns the result of evaluation
         """
-        return eval(expr, self.user_global_ns, self.user_ns)
+        return eval(expr, self.locals)
 
     def ex(self, cmd):
         """Execute a normal python statement in user namespace."""
-        exec(cmd, self.user_global_ns, self.user_ns)
+        exec(cmd, self.locals)
     
     def run_magic(self, line):
         s = line.split(" ")
@@ -59,7 +61,17 @@ class Shell(object):
         except SyntaxError:
             code = compile(newcell, '<stdin>', 'exec')
         return self.ev(code)
-    
+
+    def runsource(self, code, filename="<input>", symbol="single"):
+        code = command_transformer(code.rstrip())
+        try:
+            tokens = tokenize.generate_tokens(StringIO(code).readline)
+            newtokens = unit_transformer(magic_transformer(list(tokens)))
+            newcode = tokenize.untokenize(newtokens)
+        except tokenize.TokenError:
+            return True
+        return super(Shell, self).runsource(newcode, filename, symbol)
+            
 import sys, os, shlex, getopt
 
 magics = {}
