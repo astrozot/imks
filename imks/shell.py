@@ -11,6 +11,11 @@ class Shell(InteractiveConsole):
         self.locals.update({"run_magic": lambda s: self.run_magic(s)})
         self.user_ns = self.locals
 
+    def reset(self, new_session=True):
+        self.locals = {}
+        self.locals.update({"run_magic": lambda s: self.run_magic(s)})
+        self.user_ns = self.locals
+
     def ev(self, expr):
         """Evaluate python expression expr in user namespace.
 

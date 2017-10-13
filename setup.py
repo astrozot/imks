@@ -1,4 +1,5 @@
 from setuptools import setup
+import sys
 
 def version():
     import re
@@ -40,8 +41,10 @@ setup(name='imks',
           'ply',
           'unidecode',
           'lxml',
-          'ProxyTypes;python_version<"3.0"',
-          'objproxies;python_version>"3.0"'
+          # next two lines should be
+          # 'ProxyTypes;python_version<"3.0"',
+          # 'objproxies;python_version>"3.0"'
+          'ProxyTypes'
         ],
       extras_require = {
         'numpy': ['numpy'],

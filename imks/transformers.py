@@ -112,37 +112,24 @@ def unit_create(substatus, queue, brackets=False):
     string = queue[0][-1]
     if substatus == 0:
         if brackets:
-            u = unit_quote(queue[2:-1])
-            l1, c1 = queue[0][2]
-            l2, c2 = queue[0][3]
-            value = queue[0][1]
-            if value.find(".") < 0 and value.find("e") < 0:
-                value = value + ".0"
-                c2 = c2 + 2
-            offset = c2 + 7 + len(u) - queue[-2][3][1]
-            return [(tokenize.NAME, u"Value", (l1, c1), (l1, c1+5), string),
-                    (tokenize.OP, u'(', (l1, c1+5), (l1, c1+6), string),
-                    (tokenize.NUMBER, value, (l1, c1+6), (l2, c2+6), string),
-                    (tokenize.OP, u',', (l2, c2+6), (l2, c2+7), string),
-                    (tokenize.STRING, u, (l2, c2+7), (l2, c2+7+len(u)), string),
-                    (tokenize.OP, u')', (l2, c2+7+len(u)), (l2, c2+8+len(u)), string)], \
-                    offset
+            unit_part = queue[2:-1]
         else:
-            u = unit_quote(queue[1:])
-            l1, c1 = queue[0][2]
-            l2, c2 = queue[0][3]
-            value = queue[0][1]
-            if value.find(".") < 0 and value.find("e") < 0:
-                value = value + ".0"
-                c2 = c2 + 2
-            offset = c2 + 7 + len(u) - queue[-1][3][1]
-            return [(tokenize.NAME, u"Value", (l1, c1), (l1, c1+5), string),
-                    (tokenize.OP, u'(', (l1, c1+5), (l1, c1+6), string),
-                    (tokenize.NUMBER, value, (l1, c1+6), (l2, c2+6), string),
-                    (tokenize.OP, u',', (l2, c2+6), (l2, c2+7), string),
-                    (tokenize.STRING, u, (l2, c2+7), (l2, c2+7+len(u)), string),
-                    (tokenize.OP, u')', (l2, c2+7+len(u)), (l2, c2+8+len(u)), string)], \
-                    offset
+            unit_part = queue[1:]
+        u = unit_quote(unit_part)
+        l1, c1 = queue[0][2]
+        l2, c2 = queue[0][3]
+        value = queue[0][1]
+        if value.find(".") < 0 and value.find("e") < 0:
+            value = value + ".0"
+            c2 = c2 + 2
+        offset = c2 + 8 + len(u) - queue[-1][3][1]
+        return [(tokenize.NAME, u"Value", (l1, c1), (l1, c1+5), string),
+                (tokenize.OP, u'(', (l1, c1+5), (l1, c1+6), string),
+                (tokenize.NUMBER, value, (l1, c1+6), (l2, c2+6), string),
+                (tokenize.OP, u',', (l2, c2+6), (l2, c2+7), string),
+                (tokenize.STRING, u, (l2, c2+7), (l2, c2+7+len(u)), string),
+                (tokenize.OP, u')', (l2, c2+7+len(u)), (l2, c2+8+len(u)), string)], \
+                offset
     else:
         if brackets:
             u = unit_quote(queue[1:-1])
@@ -167,7 +154,7 @@ def unit_transformer(tokens):
 
     # @@@DEBUG
     # for t in tokens:
-    #     tokenize.printtoken(*t)
+    #    print(t)
     
     # First, check if there are uncertainties combinations
     if engine == "ufloat":
@@ -443,8 +430,7 @@ def unit_transformer(tokens):
                 # We did not find a name after a / or the name was not a valid
                 # unit.  Put everything back!
                 status = 0
-                t0 = queue[-1]
-                queue = queue[0:-1]
+                t0 = queue.pop()
                 queue, delta = unit_create(substatus, queue)
                 newtoks.extend(queue)
                 if substatus == 1:
@@ -571,7 +557,7 @@ def unit_transformer(tokens):
         result = uresult
     # @@@DEBUG
     # for t in result:
-    #    tokenize.printtoken(*t)
+    #     print(t)
     return result
 
 

@@ -87,10 +87,12 @@ def getrates(app_id="", base='EUR', offline=False, grace=3, historical=None,
         elif delta > grace: force = True
     if force:
         try:
-            currencydict = json.loads(request.urlopen(url1, timeout=timeout).read())
+            response = request.urlopen(url1, timeout=timeout).read()
+            currencydict = json.loads(response.decode('utf-8'))
             if historical: url = url3 % historical
             else: url = url2
-            data = json.loads(request.urlopen(url, timeout=timeout).read())
+            response = request.urlopen(url, timeout=timeout).read()
+            data = json.loads(response.decode('utf-8'))
             currencytime = data["timestamp"]
             rates = data["rates"]
             if not historical:
@@ -102,7 +104,8 @@ def getrates(app_id="", base='EUR', offline=False, grace=3, historical=None,
         except error.URLError as e:
             if strict:
                 try:
-                    data = json.loads(e.read())
+                    response = e.read()
+                    data = json.loads(e.decode('utf-8'))
                     description = data.get("description",
                                            "Unknown error in the currency server")
                     description = description[0:description.find("-")].strip() 
