@@ -2,6 +2,8 @@ import math
 from .units import Value
 from .uparse import uparse
 
+_round = round
+
 def mathdoc(f):
     "Decorator to copy the math __doc__ string."
     f.__doc__ = getattr(math, f.__name__, {"__doc__": ""}).__doc__
@@ -76,6 +78,11 @@ def pow(x, y):
     return x**y
 
 @mathdoc
+def round(x):
+    if isinstance(x, Value): return Value(_round(x.value), x.unit)
+    else: return _round(x)
+
+@mathdoc
 def sqrt(x):
     if isinstance(x, Value): return Value(math.sqrt(x.value), x.unit / 2)
     else: return math.sqrt(x)
@@ -105,15 +112,17 @@ def load(namespace):
     for name in names:
         if name[0] != '_':
             namespace[name] = globs.get(name, getattr(math, name))
+    namespace["round"] = round
     namespace["fraction"] = fraction
     namespace["ufloat"] = ufloat
 
 def unload(namespace):
     "Unload all math defined functions"
-    names = dir(math) + ["fraction", "ufloat"]
+    names = dir(math) + ["fraction", "ufloat", "round"]
     for name in names:
         if name[0] != '_':
             try:
                 del namespace[name]
             except KeyError:
                 pass
+    namespace["round"] = _round

@@ -1,5 +1,6 @@
+# > python setup.py sdist upload
+
 from setuptools import setup
-import sys
 
 def version():
     import re

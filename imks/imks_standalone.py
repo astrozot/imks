@@ -6,15 +6,15 @@ from unidecode import unidecode
 from imks._version import __version__, __date__
 from imks import units
 from imks import currencies
-from imks import calendars
-from imks.transformers import command_transformer, unit_transformer, transform
+from . import calendars
+from .transformers import command_transformer, unit_transformer, transform
 
 try:
     from objproxies import CallbackProxy, LazyProxy
 except:
     from peak.util.proxies import CallbackProxy, LazyProxy
 
-from imks.config import *
+from .config import *
 
 ######################################################################
 # Code
@@ -50,7 +50,7 @@ def load_imks(shell=None):
     config["intrans"] = {}
 
     # activate true float division
-    magic.shell.ex("from __future__ import division")
+    magic.shell.push(u"from __future__ import division")
 
     # save current ipython global variables
     config['initial_status'] = magic.shell.locals.keys()
@@ -78,11 +78,3 @@ def load_imks(shell=None):
 
     return magic
 
-
-if __name__ == "__main__" or sys.platform == 'ios':
-    imks = load_imks()
-    try:
-        imks.shell.interact(banner="", exitmsg="")
-    except TypeError:
-        # This line is for Python 2.7
-        imks.shell.interact(banner="")

@@ -351,10 +351,10 @@ def unit_transformer(tokens):
                     value == "|"
                     l1, c1 = t[3]
                     s = t[-1]
-                    offset += 8             # This is OK, tokens1 should be empty now!
+                    offset += 7             # This is OK, tokens1 is empty now
                     newtoks.extend([change_token(t, "|"), 
-                                    (tokenize.NAME, u"System", (l1,c1+1), (l1,c1+7), s),
-                                    (tokenize.OP, u"(", (l1,c1+7), (l1,c1+8), s)])
+                                    (tokenize.NAME, u"System", (l1,c1), (l1,c1+6), s),
+                                    (tokenize.OP, u"(", (l1,c1+6), (l1,c1+7), s)])
                 else:
                     newtoks.extend(queue)
                     queue = []
@@ -408,9 +408,10 @@ def unit_transformer(tokens):
                     newtoks.extend(queue)
                     tokens1.appendleft(t)
                     offset += delta
-                    tokens1 = offset_tokens(tokens1, delta+1)
+                    tokens1 = offset_tokens(tokens1, delta)
                     if substatus == 1:
                         col = queue[-1][3][1]
+                        tokens1 = offset_tokens(tokens1, 1)
                         tokens1.appendleft((tokenize.OP, ")",
                                            (t[2][0], col),
                                            (t[2][0], col+1), t[4]))

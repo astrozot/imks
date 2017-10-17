@@ -2,10 +2,34 @@ import mpmath
 from .units import Value
 from .uparse import uparse
 
+_round = round
+
 def mpdoc(f):
     "Decorator to copy the mpmath __doc__ string."
     f.__doc__ = getattr(mpmath, f.__name__, {"__doc__": ""}).__doc__
     return f
+
+def unitier(f):
+    "Decorator to use Value's (with units put back) in normal functions."
+    def f_new(x):
+        if isinstance(x, Value): return Value(f_orig(x.value), x.unit)
+        else: return f_orig(x)
+    if isinstance(f, str): name = f
+    else: name = f.__name__
+    f_orig = getattr(mpmath, name)
+    f_new.__doc__ = f_orig.__doc__
+    return f_new
+
+def purifier(f):
+    "Decorator to use Value's (with units ignored) in normal functions."
+    def f_new(x):
+        if isinstance(x, Value): return f_orig(x.value)
+        else: return f_orig(x)
+    if isinstance(f, str): name = f
+    else: name = f.__name__
+    f_orig = getattr(mpmath, name)
+    f_new.__doc__ = f_orig.__doc__
+    return f_new
 
 @mpdoc
 def fraction(q, p):
@@ -16,37 +40,7 @@ def fraction(q, p):
                      q1.unit - p1.unit)
     else:
         return Value(float(q) / float(p))
-
-@mpdoc
-def fabs(x):
-    if isinstance(x, Value): return Value(mpmath.fp.fabs(x.value), x.unit)
-    else: return mpmath.fp.fabs(x)
-
-@mpdoc
-def sign(x):
-    if isinstance(x, Value): return mpmath.fp.sign(x.value)
-    else: return mpmath.fp.sign(x)
-
-@mpdoc
-def re(x):
-    if isinstance(x, Value): return Value(mpmath.fp.re(x.value), x.unit)
-    else: return mpmath.fp.re(x)
-
-@mpdoc
-def im(x):
-    if isinstance(x, Value): return Value(mpmath.fp.im(x.value), x.unit)
-    else: return mpmath.fp.im(x)
-
-@mpdoc
-def arg(x):
-    if isinstance(x, Value): return mpmath.fp.arg(x.value)
-    else: return mpmath.fp.arg(x)
-
-@mpdoc
-def conj(x):
-    if isinstance(x, Value): return Value(mpmath.fp.conj(x.value), x.unit)
-    else: return mpmath.fp.conj(x)
-
+        
 # Powers and logarithms
 
 @mpdoc
@@ -197,23 +191,37 @@ def ufloat(s):
 
 def load(namespace):
     "Load all mpmath defined functions, using when appropriate modified versions."
+
     names = dir(mpmath)
     globs = globals()
+    purifiers = ['sign', 'arg', 'isinf', 'isnan', 'isnormal', 'isfinite', 'isint']
+    unitiers = ['fabs', 'ceils', 'floor', 'frac', 'nint', 're', 'im', 'conj']
     for name in names:
-        if hasattr(mpmath.fp, name):
-            namespace[name] = globs.get(name, getattr(mpmath.fp, name))
+        if hasattr(mpmath.mp, name) or name == 'mp':
+            if name in globs:
+                namespace[name] = globs[name]
+            elif name in purifiers:
+                namespace[name] = purifier(name)
+            elif name in unitiers:
+                namespace[name] = unitier(name)
+            else:
+                namespace[name] = getattr(mpmath, name)
+    
     namespace["fp"] = mpmath.fp
     namespace["fraction"] = fraction
+    namespace["round"] = namespace["nint"]
     namespace["ufloat"] = ufloat
     namespace["fp"].pretty = True
 
 def unload(namespace):
     "Unload all mpmath defined functions"
-    names = dir(mpmath) + ["fraction", "fp", "ufloat"]
+    names = dir(mpmath) + ["fraction", "fp", "ufloat", "nint", "frac"]
     for name in names:
         if hasattr(mpmath.mp, name):
             try:
                 del namespace[name]
             except KeyError:
                 pass
+    namespace["round"] = _round
+            
         

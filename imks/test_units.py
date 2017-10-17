@@ -2,13 +2,14 @@
 
 import unittest
 from random import random, randrange
-from . import units
+from . import units, currencies
 from .units import Value as V
 
 
 class UnitTestCase(unittest.TestCase):
     def setUp(self):
         units.reset()
+        currencies.reset()
         for b in ['m', 'g', 's', 'A', 'K', 'mol', 'cd']:
             units.newbaseunit(b)
         for k, v in [('G', 1000000000.0), ('M', 1000000.0), ('k', 1000.0),
@@ -142,6 +143,7 @@ class UnitTestCase(unittest.TestCase):
         for a, b, c in tests:
             x = a | units.System(*b)
             self.assertEqual(str(x), c, msg="Conversion failed")
-            
+
+
 if __name__ == '__main__':
     unittest.main()
