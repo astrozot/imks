@@ -9,6 +9,7 @@ config = {"banner": True,
           "unit_tolerant": units.tolerant,
           "prefix_only": units.prefixonly,
           "show_errors": units.showerrors,
+          "complete_currencies": "maybe",
           "digits": 15,
           "min_fixed": None,
           "max_fixed": None}

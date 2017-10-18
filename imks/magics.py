@@ -70,6 +70,8 @@ class imks_magic(Magics):
                        units are sorted to show first positive units [%s]
           -k <on|off>  toggle the use of prefixes without units.  When enabled, one
                        can enter quantities such as 1[k] to indicate 1000 [%s]
+          -$ <0|1|2>   do not complete currencies (0), complete them only if capital
+                       letters are present (1), or complete them anyway (2) [%s]
           -c <name>    specify the engine for mathematical calculations: must be one
                        of math, mpmath, fpmath, numpy, umath, soerp, mcerp [%s]
           -o <0|1|2>   ignore errors on outputs (0), use them only to set the number
@@ -95,11 +97,12 @@ class imks_magic(Magics):
              "on" if config["unit_tolerant"] else "off",
              "on" if config["sort_units"] else "off",
              "on" if config["prefix_only"] else "off",
+             "2" if config["complete_currencies"] == True else
+             "0" if config["complete_currencies"] == False else "1",
              config["engine"], config["show_errors"],
              config.get("default_calendar", "none"),
              config["digits"], config["min_fixed"], config["max_fixed"],
              "on" if config["enabled"] else "off")
-
 
     @line_magic
     def imks(self, args):
@@ -108,7 +111,7 @@ class imks_magic(Magics):
                 print(s)
                 
         global config
-        opts, name = self.parse_options(args, 'ha:e:u:s:k:t:c:m:M:p:o:d:')
+        opts, name = self.parse_options(args, 'ha:e:u:s:k:t:$:c:m:M:p:o:d:')
         if name in ["on", "1", "yes"]:
             config["enabled"] = True
             imks_print("iMKS enabled")
@@ -173,6 +176,18 @@ class imks_magic(Magics):
                 imks_print("Zero-value tolerance disabled")
             else:
                 print("Incorrect argument.  Use on/1 or off/0")
+        if "$" in opts:
+            if opts["$"] in ["on", "2", "yes"]:
+                config["complete_currencies"] = True
+                imks_print("Currency completion enabled")
+            elif opts["$"] in ["off", "0", "no"]:
+                config["complete_currencies"] = False
+                imks_print("Currency completion disabled")
+            elif opts["$"] in ["maybe", "1", "perhaps"]:
+                config["complete_currencies"] = "maybe"
+                imks_print("Currency completion partially enabled")
+            else:
+                print("Incorrect argument.  Use on/2, maybe/1, or off/0")
         if "c" in opts:
             if opts["c"] in ["math", "mpmath", "fpmath", "numpy",
                              "umath", "soerp", "mcerp"]:

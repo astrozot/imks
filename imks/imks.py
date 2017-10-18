@@ -20,7 +20,7 @@ from .config import *
 # Completer
 
 import readline
-
+from itertools import chain
 from IPython.core.error import TryNext
 
 def _retrieve_obj(name, context):
@@ -53,8 +53,12 @@ class Imks_completer(object):
                       units.prefixes.keys())
 
     def get_units(self, text):
+        us = units.units.keys()
+        if config["complete_currencies"] == False or \
+          (config["complete_currencies"] != True and text.lower() == text):
+            us = set(us) - set(currencies.currencydict.keys())
         return filter(lambda x: x.startswith(text) and self.is_ascii(x),
-                      units.units.keys())
+                      us)
 
     def get_systems(self, text):
         return filter(lambda x: x.startswith(text) and self.is_ascii(x),
@@ -62,8 +66,11 @@ class Imks_completer(object):
 
     def get_prefunits(self, text):
         us = units.units.keys()
-        ps = filter(lambda x: (x.startswith(text) or text.startswith(x)) and
-                    self.is_ascii(x), units.prefixes.keys())
+        if config["complete_currencies"] == False or \
+          (config["complete_currencies"] != True and text.lower() == text):
+            us = set(us) - set(currencies.currencydict.keys())
+        ps = list(filter(lambda x: (x.startswith(text) or text.startswith(x)) and
+                         self.is_ascii(x), units.prefixes.keys()))
         l = len(text)
         # Note that below we do not explicitely add us, since the null prefix
         # is a valid prefix and is already in the list ps.  We do instead add
@@ -129,7 +136,7 @@ def imks_at_completer(self, event):
     vs = re_unit_match.split(us)[-1]    # last unit or system
     v = re_space_match.split(vs)[-1]
     readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
-    return imks_completer.get_systems(v) + imks_completer.get_prefunits(v)
+    return chain(imks_completer.get_systems(v), imks_completer.get_prefunits(v))
 
 re_item_match = re.compile(r".*(\b(?!\d)\w\w*(\[[^\]]+\])*)\[((?P<s>['\"])(?!.*(?P=s)).*)$")
 def imks_dict_completer(self, event):
@@ -303,6 +310,12 @@ def load_ipython_extension(ip):
 
     # load Startup
     ip.run_line_magic("load_imks", "Startup")
+
+    # avoid jedi in case of a recent IPython version
+    try:
+        ip.magic('config IPCompleter.use_jedi=False')
+    except (NameError, AttributeError):
+        pass
     
     # setup completer
     r"(?:.*\=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*))(?:\[)"
