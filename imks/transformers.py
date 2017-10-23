@@ -1,4 +1,4 @@
-import string, re, tokenize, token
+import re, tokenize
 from collections import deque
 from io import StringIO
 from .config import *
@@ -10,14 +10,16 @@ re_date = re.compile(r"(\d+(\.\d+){2,})([ ]+\d\d?:\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?:
 # Token utilities
 
 def offset_token(t, delta=0, gamma=0):
-    return (t[0], t[1], (t[2][0]+gamma, t[2][1]+delta),
-                (t[3][0]+gamma, t[3][1]+delta), t[4])
+    return t[0], t[1], (t[2][0]+gamma, t[2][1]+delta), \
+           (t[3][0]+gamma, t[3][1]+delta), t[4]
+
 
 def offset_tokens(ts, delta=0, gamma=0):
     return ts.__class__(offset_token(t, delta, gamma) for t in ts)
 
+
 def change_token(t, value):
-    return (t[0], value, (t[2][0], t[2][1]), (t[3][0], t[3][1]), t[4])
+    return t[0], value, (t[2][0], t[2][1]), (t[3][0], t[3][1]), t[4]
 
 
 ######################################################################
@@ -25,7 +27,8 @@ def change_token(t, value):
 
 def magic_transformer(tokens):
     global config
-    if not config["enabled"]: return tokens
+    if not config["enabled"]:
+        return tokens
         
     # fix multiline issue
     # tokens = list(filter(lambda t: t[0] != tokenize.NL, tokens))
@@ -51,7 +54,7 @@ def magic_transformer(tokens):
                      (tokenize.STRING, s, (l0, c0+10), (l0, c0+10+len(s)), t[4]),
                      (tokenize.OP, u")", (l0, c0+10+len(s)), (l0, c0+11+len(s)), t[4]),
                      (tokenize.NEWLINE, u"\n", (l0, c0+11+len(s)), (l0, c0+12+len(s)),
-                          t[4])])
+                      t[4])])
                 trigger = []
             else:
                 newtokens.append(t)
@@ -61,7 +64,8 @@ def magic_transformer(tokens):
                 trigger.append(t)
             else:
                 newtokens.append(t)
-            if t[0] != tokenize.DEDENT: newline = False
+            if t[0] != tokenize.DEDENT:
+                newline = False
     return newtokens
 
 
@@ -70,10 +74,13 @@ def magic_transformer(tokens):
 
 def command_transformer(line):
     global config
-    if not config["enabled"]: return line
+    if not config["enabled"]:
+        return line
     if line and line[-1] == '!':
-        if len(line) > 1 and line[-2] == '!': line = "%uinfo -a " + line[:-2]
-        else: line = "%uinfo " + line[:-1]
+        if len(line) > 1 and line[-2] == '!':
+            line = "%uinfo -a " + line[:-2]
+        else:
+            line = "%uinfo " + line[:-1]
     if config.get("default_calendar", None):
         replaces = []
         for m in re_date.finditer(line):
@@ -85,7 +92,7 @@ def command_transformer(line):
                                 m.start(), m.end()))
         for what, start, end in replaces:
             line = line[:start] + what + line[end:]
-    for r,t in config["intrans"].values():
+    for r, t in config["intrans"].values():
         replaces = []
         for m in r.finditer(line):
             args = m.groupdict()
@@ -103,9 +110,12 @@ def command_transformer(line):
 
 def unit_quote(queue):
     u = tokenize.untokenize(queue).replace('\\', '').replace('\n', ' ').strip()
-    if u.find('"') < 0: return u'"' + u + u'"'
-    elif u.find("'") < 0: return u"'" + u + u"'"
-    else: return u'"""' + u + u'"""'
+    if u.find('"') < 0:
+        return u'"' + u + u'"'
+    elif u.find("'") < 0:
+        return u"'" + u + u"'"
+    else:
+        return u'"""' + u + u'"""'
     
 
 def unit_create(substatus, queue, brackets=False):
@@ -129,7 +139,7 @@ def unit_create(substatus, queue, brackets=False):
                 (tokenize.OP, u',', (l2, c2+6), (l2, c2+7), string),
                 (tokenize.STRING, u, (l2, c2+7), (l2, c2+7+len(u)), string),
                 (tokenize.OP, u')', (l2, c2+7+len(u)), (l2, c2+8+len(u)), string)], \
-                offset
+               offset
     else:
         if brackets:
             u = unit_quote(queue[1:-1])
@@ -144,13 +154,15 @@ def unit_create(substatus, queue, brackets=False):
             return [(tokenize.STRING, u, (l1, c1), (l1, c1+len(u)), string)], \
                    offset
 
+
 def unit_transformer(tokens):
     global config, internals
-    if not config["enabled"]: return tokens
+    if not config["enabled"]:
+        return tokens
     engine = internals["engine"]
     
     # fix multiline issue
-    tokens = list(filter(lambda t: t[0] != tokenize.NL, tokens))
+    tokens = list(filter(lambda x: x[0] != tokenize.NL, tokens))
 
     # @@@DEBUG
     # for t in tokens:
@@ -165,31 +177,32 @@ def unit_transformer(tokens):
             c0 = tokens[n][0]
             if c0 == tokenize.NUMBER:
                 if n < ntokens - 4 and \
-                  tokens[n+1][0] == tokenize.OP and tokens[n+1][1] == "+" and \
-                  tokens[n+2][0] == tokenize.OP and tokens[n+2][1] == "/" and \
-                  tokens[n+3][0] == tokenize.OP and tokens[n+3][1] == "-" and \
-                  tokens[n+4][0] == tokenize.NUMBER:
+                        tokens[n+1][0] == tokenize.OP and tokens[n+1][1] == "+" and \
+                        tokens[n+2][0] == tokenize.OP and tokens[n+2][1] == "/" and \
+                        tokens[n+3][0] == tokenize.OP and tokens[n+3][1] == "-" and \
+                        tokens[n+4][0] == tokenize.NUMBER:
                     # check if we are using the (a +/- b)[exp] syntax
-                    if n > 0 and n < ntokens - 5 and \
-                      tokens[n-1][0] == tokenize.OP and tokens[n-1][1] == "(" and \
-                      tokens[n+5][0] == tokenize.OP and tokens[n+5][1] == ")":
-                      # OK, we might be using it, check if this is a function
-                      # call
+                    if 0 < n < ntokens - 5 and \
+                            tokens[n-1][0] == tokenize.OP and tokens[n-1][1] == "(" and \
+                            tokens[n+5][0] == tokenize.OP and tokens[n+5][1] == ")":
+                        # OK, we might be using it, check if this is a function
+                        # call
                         if n <= 1 or tokens[n-2][0] != tokenize.NAME:
                             # not a function call: we need to remove the
                             # parentheses; check if the exponent is following
                             newtoks.pop()
                             if n < ntokens - 6 and \
-                              tokens[n+6][0] == tokenize.NAME and \
-                              len(tokens[n+6][1]) >= 2 and \
-                              tokens[n+6][1][0].lower() == "e" and \
-                              tokens[n+6][1][1].isdigit():
+                                    tokens[n+6][0] == tokenize.NAME and \
+                                    len(tokens[n+6][1]) >= 2 and \
+                                    tokens[n+6][1][0].lower() == "e" and \
+                                    tokens[n+6][1][1].isdigit():
                                 # Get all digits after "e": the rest might be a
                                 # unit specification
                                 i = 2
                                 t1 = tokens[n+6]
                                 s = t1[1]
-                                while i < len(s) and s[i].isdigit(): i = i+1
+                                while i < len(s) and s[i].isdigit():
+                                    i = i+1
                                 tokens[n+6] = (t1[0], s[0:i], t1[2],
                                                (t1[3][0], t1[2][1] + i), t1[4])
                                 t = (tokenize.NUMBER,
@@ -201,15 +214,15 @@ def unit_transformer(tokens):
                                     t1 = (t1[0], s[i:], (t1[2][0], t1[2][1]+i),
                                           t1[3], t1[4])
                                     tokens[n+6] = t1
-                                    n = n -1
+                                    n = n - 1
                                 n = n + 7
                                 continue
-                            elif (n < ntokens - 8 and \
-                              tokens[n+6][0] == tokenize.NAME and \
-                              tokens[n+6][1].lower() == "e" and \
-                              tokens[n+7][0] == tokenize.OP and \
-                              tokens[n+7][1] in ["+", "-"] and \
-                              tokens[n+8][0] == tokenize.NUMBER):
+                            elif n < ntokens - 8 and \
+                                    tokens[n+6][0] == tokenize.NAME and \
+                                    tokens[n+6][1].lower() == "e" and \
+                                    tokens[n+7][0] == tokenize.OP and \
+                                    tokens[n+7][1] in ["+", "-"] and \
+                                    tokens[n+8][0] == tokenize.NUMBER:
                                 t = (tokenize.NUMBER,
                                      tokenize.untokenize(tokens[n-1:n+9]),
                                      tokens[n-1][2], tokens[n+8][3],
@@ -232,23 +245,23 @@ def unit_transformer(tokens):
                     n = n + 5
                     continue
                 if n < ntokens - 3 and \
-                  tokens[n+1][0] == tokenize.OP and tokens[n+1][1] == "(" and \
-                  tokens[n+2][0] == tokenize.NUMBER and \
-                  tokens[n+3][0] == tokenize.OP and tokens[n+3][1] == ")":
-                  # using the 1.234(5) notation: verify the possible presence
-                  # of an exponent
-
+                        tokens[n+1][0] == tokenize.OP and tokens[n+1][1] == "(" and \
+                        tokens[n+2][0] == tokenize.NUMBER and \
+                        tokens[n+3][0] == tokenize.OP and tokens[n+3][1] == ")":
+                    # using the 1.234(5) notation: verify the possible presence
+                    # of an exponent
                     if n < ntokens - 4 and \
-                      tokens[n+4][0] == tokenize.NAME and \
-                      len(tokens[n+4][1]) >= 2 and \
-                      tokens[n+4][1][0].lower() == "e" and \
-                      tokens[n+4][1][1].isdigit():
+                            tokens[n+4][0] == tokenize.NAME and \
+                            len(tokens[n+4][1]) >= 2 and \
+                            tokens[n+4][1][0].lower() == "e" and \
+                            tokens[n+4][1][1].isdigit():
                         # Get all digits after "e": the rest might be a
                         # unit specification
                         i = 2
                         t1 = tokens[n+4]
                         s = t1[1]
-                        while i < len(s) and s[i].isdigit(): i = i+1
+                        while i < len(s) and s[i].isdigit():
+                            i = i+1
                         tokens[n+4] = (t1[0], s[0:i], t1[2],
                                        (t1[3][0], t1[2][1] + i), t1[4])
                         t = (tokenize.NUMBER,
@@ -264,11 +277,11 @@ def unit_transformer(tokens):
                         n = n + 5
                         continue
                     elif n < ntokens - 6 and \
-                      tokens[n+4][0] == tokenize.NAME and \
-                      tokens[n+4][1].lower() == "e" and \
-                      tokens[n+5][0] == tokenize.OP and \
-                      tokens[n+5][1] in ["+", "-"] and \
-                      tokens[n+6][0] == tokenize.NUMBER:
+                            tokens[n+4][0] == tokenize.NAME and \
+                            tokens[n+4][1].lower() == "e" and \
+                            tokens[n+5][0] == tokenize.OP and \
+                            tokens[n+5][1] in ["+", "-"] and \
+                            tokens[n+6][0] == tokenize.NUMBER:
                         t = (tokenize.NUMBER,
                              tokenize.untokenize(tokens[n:n+7]),
                              tokens[n][2], tokens[n+6][3],
@@ -323,11 +336,11 @@ def unit_transformer(tokens):
                     tokens1.extend([t,
                                     (tokenize.NAME, "Doc", (l1, c1+2), (l1, c1+5),
                                      string),
-                                     (tokenize.OP, "(", (l1, c1+5), (l1, c1+6), string),
-                                     (tokenize.STRING, comment, (l1, c1+6),
+                                    (tokenize.OP, "(", (l1, c1+5), (l1, c1+6), string),
+                                    (tokenize.STRING, comment, (l1, c1+6),
                                      (l1, c1+6+lc), string),
-                                     (tokenize.OP, ")", (l1, c1+6+lc), (l1, c1+7+lc),
-                                      string)])
+                                    (tokenize.OP, ")", (l1, c1+6+lc), (l1, c1+7+lc),
+                                     string)])
                     continue
             if status <= 0:                 # ...
                 if codex == tokenize.NUMBER and substatus == 0:
@@ -340,21 +353,21 @@ def unit_transformer(tokens):
                     status = 2
                     queue.append(t)
                 elif config["auto_brackets"] and codex == tokenize.NAME and \
-                    (units.isunit(value) or substatus == 1):
+                        (units.isunit(value) or substatus == 1):
                     status = 3
                     queue.append(t)
                 elif config["auto_brackets"] and value == "*" and \
-                    substatus == 1:
+                        substatus == 1:
                     status = 1
                     queue.append(t)
                 elif substatus == 1 and value == "@":
-                    value == "|"
+                    value = "|"
                     l1, c1 = t[3]
                     s = t[-1]
                     offset += 7             # This is OK, tokens1 is empty now
                     newtoks.extend([change_token(t, "|"), 
-                                    (tokenize.NAME, u"System", (l1,c1), (l1,c1+6), s),
-                                    (tokenize.OP, u"(", (l1,c1+6), (l1,c1+7), s)])
+                                    (tokenize.NAME, u"System", (l1, c1), (l1, c1+6), s),
+                                    (tokenize.OP, u"(", (l1, c1+6), (l1, c1+7), s)])
                 else:
                     newtoks.extend(queue)
                     queue = []
@@ -362,7 +375,7 @@ def unit_transformer(tokens):
                     if substatus == 1:
                         l1, c1 = t[3]
                         s = t[-1]
-                        newtoks.append((tokenize.OP, u")", (l1,c1+1), (l1,c1+2), s))
+                        newtoks.append((tokenize.OP, u")", (l1, c1+1), (l1, c1+2), s))
                         substatus = 0
                         offset += 1
                         tokens1 = offset_tokens(tokens1, 2)
@@ -381,7 +394,7 @@ def unit_transformer(tokens):
                     tokens1 = offset_tokens(tokens1, delta)
                     queue = []
                 elif substatus == 1 and codex == tokenize.OP and \
-                    (value == "," or value == "|"):
+                        (value == "," or value == "|"):
                     queue.append(change_token(t, "]"))
                     queue, delta = unit_create(substatus, queue, True)
                     newtoks.extend(queue)
@@ -419,7 +432,7 @@ def unit_transformer(tokens):
                         offset += 1
                     status = 0
                     queue = []
-            elif status == 4 or status == 8: # ...12 m / or ...12 m.
+            elif status == 4 or status == 8:  # ...12 m / or ...12 m.
                 if codex == tokenize.NAME:
                     # Mmh, found a name after a / in a possible unit specification.
                     # Is it really a possible unit or not?  Check...
@@ -531,7 +544,7 @@ def unit_transformer(tokens):
         result = newtoks
     if config["standard_exponent"]:
         result = [(codex, u"**", p1, p2, string) if codex == tokenize.OP and value == "^"
-                  else (codex, value, p1, p2, string) \
+                  else (codex, value, p1, p2, string)
                   for codex, value, p1, p2, string in result]
     if engine:
         uresult = []
@@ -539,9 +552,9 @@ def unit_transformer(tokens):
         for t in result:
             t = offset_token(t, offset)
             if t[0] == tokenize.NUMBER and \
-              (t[1].find(".") >= 0 or t[1].find("e") >= 0 or \
-               t[1].find("E") >= 0 or \
-               t[1].find("/") >= 0 or t[1].find("(") >= 0):
+                (t[1].find(".") >= 0 or t[1].find("e") >= 0 or
+                 t[1].find("E") >= 0 or
+                 t[1].find("/") >= 0 or t[1].find("(") >= 0):
                 l1, c1 = t[2]
                 l2, c2 = t[3]
                 le = len(engine)
@@ -569,6 +582,7 @@ try:
     unicode
 except NameError:
     unicode = str
+
 
 def transform(code):
     # We should probably add a command_transformer call here?

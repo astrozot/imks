@@ -51,7 +51,7 @@ def set_geolocation(address=None, latitude=None, longitude=None, elevation=None,
     if timezone is not None:
         timezone = units.Value(timezone)
         if not timezone.unit: timezone = units.Value(timezone*3600, "s")
-        timezone.checkUnits(units.Value(1, "s").unit)
+        timezone.check_units(units.Value(1, "s").unit)
     else:
         try:
             timezone = get_timezone(**loc)
@@ -62,7 +62,7 @@ def set_geolocation(address=None, latitude=None, longitude=None, elevation=None,
     if elevation is not None:
         elevation = units.Value(elevation)
         if not elevation.unit: elevation = units.Value(elevation, "m")
-        elevation.checkUnits(units.Value(1, "m").unit)
+        elevation.check_units(units.Value(1, "m").unit)
     else:
         try:
             elevation = units.Value(get_elevation(**loc), "m")

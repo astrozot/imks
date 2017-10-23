@@ -32,7 +32,7 @@ def unit_wrapper(name, func, powers):
         arg = args[n]
         if p is None:
             newargs.append(arg)
-            s.append("  if isinstance(%s, units.Value): %s.checkPure()" % (arg, arg))
+            s.append("  if isinstance(%s, units.Value): %s.check_pure()" % (arg, arg))
         elif isinstance(p, (int, long, float)):
             newargs.append("_" + arg)
             s.append("  if isinstance(%s, units.Value):")

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-from random import random, randrange
 from . import units, currencies
-from .units import Value as V
 from .config import *
 
 class UnitTestCase(unittest.TestCase):
@@ -52,7 +50,7 @@ class UnitTestCase(unittest.TestCase):
                  ('1e-27 @ [kg/m|"c"|"G"]', "1.3466353096409[kg m^-1]"),
                  ('1 @ [kg|m|"c"|"G"]', "1[]"),
                  ("1e8 @ [kg|'planck']",
-                      "2.1764701956342['G'^1/2 'c'^-1/2 'hbar'^-1/2 kg]"),
+                  "2.1764701956342['G'^1/2 'c'^-1/2 'hbar'^-1/2 kg]"),
                  ("2.1764701956342e-8['G'^1/2 'c'^-1/2 'hbar'^-1/2 kg]", "1[]")]
                  
         for x1, x2 in tests:

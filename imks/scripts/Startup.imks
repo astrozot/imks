@@ -85,7 +85,7 @@
 %newunit kph=1[km/hr]			  # "Kilometers per hour"
 %newunit knot=1[nmi/hr]			  # "Knot"
 
-%newunit gram=1[g]			  # "gram"
+%newunit gram=1[g]			  # "Gram"
 %newunit oz=28.349523125[g]		  # "Ounce"
 %newunit lb=16[oz]			  # "Pound (mass)"
 %newunit pound=1[lb]			  # "Pound (mass)"
@@ -171,8 +171,6 @@
 
 %let sigma=2*pi^5*k^4/(15*h^3*c^2)           # "Stefan-Boltzmann constant"
 %let R=Nav*k                                 # "Molar gas constant"
-
-openexchangerates_id = "66a6345b59e3420caf8eb9b971b16362"
 
 %newsystem easy=[m|s|kg|K|A|lx|mol|EUR|N|J|W|Pa|C|V|ohm|F|H|T|lx]
 %newsystem Easy=[*|easy]

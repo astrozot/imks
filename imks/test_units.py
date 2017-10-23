@@ -58,7 +58,7 @@ class UnitTestCase(unittest.TestCase):
                                 
     def test_comparisons(self):
         tests = [(V(1.2, 'm'), V(119, 'cm'), '__gt__'),
-                 (V(0.1,'m'), V(100, 'cm'), '__lt__'),
+                 (V(0.1, 'm'), V(100, 'cm'), '__lt__'),
                  (V(12, 's'), V(1.3, 'das'), '__le__'),
                  (V(1, 'kg'), V(1000, 'g'), '__eq__'),
                  (V(30, 'm/s'), V(100, 'km/h'), '__ge__'),
@@ -78,11 +78,12 @@ class UnitTestCase(unittest.TestCase):
         for u1, u2 in tests:
             for op in ops:
                 for n in range(10):
-                    v1 = V(randrange(-10,10), u1)
-                    v2 = V(randrange(-10,10), u2)
-                    if v1.value == 0 or v2.value == 0: continue
+                    v1 = V(randrange(-10, 10), u1)
+                    v2 = V(randrange(-10, 10), u2)
+                    if v1.value == 0 or v2.value == 0:
+                        continue
                     with self.assertRaisesRegexp(units.UnitError,
-                                "\[.*\] *incompatible with *\[.*\] *in *%s" % op):
+                        "\[.*\] *incompatible with *\[.*\] *in *%s" % op):
                         tmp = getattr(v1, op)(v2)
 
     def test_simple_conversions(self):

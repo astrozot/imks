@@ -1786,7 +1786,7 @@ class imks_magic(Magics):
                         where[str(tmp[1]).strip(" []")] = tmp[0]
             else:
                 where = units.units
-            for u in r.findCompatible(where, level=level):
+            for u in r.find_compatible(where, level=level):
                 print(unicode(u), end='')
                 found = True
                 sys.stdout.flush()
@@ -1802,7 +1802,7 @@ class imks_magic(Magics):
                 where = self.shell.user_ns
             where = ODict([(k,v) for k,v in where.iteritems()
                            if isinstance(v, units.Value)])
-            for u in r.findCompatible(where, level=level):
+            for u in r.find_compatible(where, level=level):
                 uu = unicode(u).strip("[] ")
                 if not found: print (uu, end='')
                 else: print(chr(8) + ",", uu, end='')

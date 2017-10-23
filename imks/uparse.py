@@ -23,6 +23,7 @@ NUMBER_WITH_UNCERT_GLOBAL_EXP_RE_MATCH = re.compile(r"""
     (?P<exp_value>[eE][-+]?\d+)
     $""", re.VERBOSE).match
 
+
 def uparse(representation):
     if representation.find("+/-") >= 0 or representation.find(u"±") or \
       representation.find("("):
@@ -39,12 +40,14 @@ def uparse(representation):
             uncert = uncert + exp_value_str
         else:
             match = NUMBER_WITH_UNCERT_RE_MATCH(representation)
+            sign = main = uncert = uncert_dec = main_dec = None
             if match:
                 sign, main, main_int, main_dec, \
-                  uncert, uncert_int, uncert_dec, exp_value_str = \
-                  match.groups()
+                    uncert, uncert_int, uncert_dec, exp_value_str = \
+                    match.groups()
             nom_value = (sign or "") + main + (exp_value_str or "")
-            if uncert is None: uncert = ""
+            if uncert is None:
+                uncert = ""
             elif uncert_dec is None and main_dec is not None:
                 lm = len(main_dec) - 1
                 lu = len(uncert)
@@ -56,4 +59,4 @@ def uparse(representation):
     else:
         uncert = ""
         nom_value = representation
-    return (nom_value, uncert)
+    return nom_value, uncert

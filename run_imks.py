@@ -3,7 +3,7 @@ from imks import imks_standalone
 
 try:
     import readline
-except:
+except ImportError:
     readline = False
 
 imks = imks_standalone.load_imks()

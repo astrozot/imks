@@ -2,15 +2,16 @@ from __future__ import absolute_import, division, print_function
 
 try:
     from urllib import request, error
-except:
+except ImportError:
     import urllib2 as request
     error = request
 
 from . import units
 from .config import *
 
+
 class Constants(dict):
-    "A constant dictionary taken from http://physics.nist.gov/cuu/Constants"
+    """A constant dictionary taken from http://physics.nist.gov/cuu/Constants"""
     def __getattr__(self, attr):
         try:
             return self[attr]
@@ -19,15 +20,20 @@ class Constants(dict):
 
     def __getitem__(self, key):
         x = dict.__getitem__(self, key)
-        if type(x) is units.Value: return x
+        if type(x) is units.Value:
+            return x
         engine_func = getattr(internals["engine_module"], internals["engine"])
         try:
-            if x[1] != "(exact)": v = "%s +/- %s" % x[0:2]
-            else: v = str(x[0])
+            if x[1] != "(exact)":
+                v = "%s +/- %s" % x[0:2]
+            else:
+                v = str(x[0])
             v = units.Value(engine_func(v), x[2])
             doc = "%s\n\nDefined in the NIST database as: " % key
-            if x[1] != "(exact)": doc += "(%s +/- %s) [%s]" % (x[0], x[1], x[2])
-            else: doc += "%s [%s] (exact)" % (x[0], x[2])
+            if x[1] != "(exact)":
+                doc += "(%s +/- %s) [%s]" % (x[0], x[1], x[2])
+            else:
+                doc += "%s [%s] (exact)" % (x[0], x[2])
             v.__doc__ = doc
         except ValueError as s:
             v = units.Value(float("NaN"))
@@ -35,25 +41,31 @@ class Constants(dict):
         dict.__setitem__(self, key, v)
         return v
 
+
 constants = Constants({})
+
 
 def getconstants(offline=False, grace=60, timeout=3, engine=False):
     import os, os.path, time, pickle
     global constants
     force = False
     url = 'http://physics.nist.gov/cuu/Constants/Table/allascii.txt'
+    # FIXME: ~/.imks might not exist
+    path = os.path.join(os.getenv('HOME'), '.imks', 'constants.dat')
     try:
-        path = os.path.join(os.getenv('HOME'), '.imks', 'constants.dat')
         update = os.path.getmtime(path)
         delta = (time.time() - update) / 86400.0
     except OSError:
         force = True
         delta = 0
-    if offline: force = False
-    elif delta > grace: force = True
+    if offline:
+        force = False
+    elif delta > grace:
+        force = True
     if force:
         nistconst = {}
-        if not engine: engine = float
+        if not engine:
+            engine = float
         try:
             with request.urlopen(url, timeout=timeout) as response:
                 header = True
@@ -71,7 +83,8 @@ def getconstants(offline=False, grace=60, timeout=3, engine=False):
                             nistconst[descr] = (value, uncer, unit)
                         except ValueError:
                             pass
-            if not nistconst: return None
+            if not nistconst:
+                return None
             constants.update([(k, (engine(v1), v2, v3))
                               for k, (v1, v2, v3) in nistconst.items()])
             f = open(path, "wb")
@@ -93,11 +106,10 @@ def getconstants(offline=False, grace=60, timeout=3, engine=False):
 
 def loadconstants(grace=30, engine=None):
     # Use cache, if available, to update all units online
-    nistconst = getconstants(offline=False, grace=grace, engine=engine)
+    getconstants(offline=False, grace=grace, engine=engine)
     # Finally, update all units online using a new thread: REMOVED
     # import threading
     # thread = threading.Thread(target=updateconstants, 
     #                           kwargs={"grace": grace, "engine": engine})
     # thread.setDaemon(True)              # so we can always quit w/o waiting
     # thread.start()
-

@@ -1,9 +1,11 @@
-import tokenize
+import sys, os, shlex, getopt
+import tokenize, inspect
 from io import StringIO, open
 from code import InteractiveConsole
 
 from .config import *
 from .transformers import command_transformer, unit_transformer, transform, magic_transformer
+
 
 class Shell(InteractiveConsole):
     def __init__(self, locals=None, filename="<console>"):
@@ -76,10 +78,10 @@ class Shell(InteractiveConsole):
         except tokenize.TokenError:
             return True
         return InteractiveConsole.runsource(self, newcode, filename, symbol)
-            
-import sys, os, shlex, getopt
+
 
 magics = {}
+
 
 def magics_class(cls):
     """Class decorator for all subclasses of the main Magics class.
@@ -121,9 +123,8 @@ class Magics(object):
     # Instance of IPython shell
     shell = None
 
-
     def __init__(self, shell=None, **kwargs):
-        if not(self.__class__.registered):
+        if not self.__class__.registered:
             raise ValueError('Magics subclass without registration - '
                              'did you forget to apply @magics_class?')
         self.options_table = {}
@@ -148,54 +149,26 @@ class Magics(object):
                 self.magics[magic_name] = meth_name
         self.shell.magics = self.magics
 
-    def arg_err(self,func):
+    def arg_err(self, func):
         """Print docstring if incorrect arguments were passed"""
         print('Error in arguments:')
-        print(oinspect.getdoc(func))
+        print(inspect.getdoc(func))
 
     def parse_options(self, arg_str, opt_str, *long_opts, **kw):
         """Parse options passed to an argument string.
 
-        The interface is similar to that of :func:`getopt.getopt`, but it
-        returns a :class:`~IPython.utils.struct.Struct` with the options as keys
-        and the stripped argument string still as a string.
-
-        arg_str is quoted as a true sys.argv vector by using shlex.split.
-        This allows us to easily expand variables, glob files, quote
-        arguments, etc.
-
-        Parameters
-        ----------
-
-        arg_str : str
-          The arguments to parse.
-
-        opt_str : str
-          The options specification.
-
-        mode : str, default 'string'
-          If given as 'list', the argument string is returned as a list (split
-          on whitespace) instead of a string.
-
-        list_all : bool, default False
-          Put all option values in lists. Normally only options
-          appearing more than once are put in a list.
-
-        posix : bool, default True
-          Whether to split the input line in POSIX mode or not, as per the
-          conventions outlined in the :mod:`shlex` module from the standard
-          library.
-        """
+        Simple replacement for IPython version of parse_options, with interface
+        similar to getopt.getopt."""
 
         # inject default options at the beginning of the input line
         caller = sys._getframe(1).f_code.co_name
-        arg_str = '%s %s' % (self.options_table.get(caller,''),arg_str)
+        arg_str = '%s %s' % (self.options_table.get(caller, ''), arg_str)
 
-        mode = kw.get('mode','string')
-        if mode not in ['string','list']:
+        mode = kw.get('mode', 'string')
+        if mode not in ['string', 'list']:
             raise ValueError('incorrect mode given: %s' % mode)
         # Get options
-        list_all = kw.get('list_all',0)
+        list_all = kw.get('list_all', 0)
         posix = kw.get('posix', os.name == 'posix')
         strict = kw.get('strict', True)
 
@@ -208,11 +181,11 @@ class Magics(object):
             argv = shlex.split(arg_str, posix, strict)
             # Do regular option processing
             try:
-                opts,args = getopt.getopt(argv, opt_str, long_opts)
+                opts, args = getopt.getopt(argv, opt_str, long_opts)
             except getopt.GetoptError as e:
-                raise UsageError('%s ( allowed: "%s" %s)' % (e.msg,opt_str,
-                                        " ".join(long_opts)))
-            for o,a in opts:
+                raise ValueError('%s ( allowed: "%s" %s)' % (e.msg, opt_str,
+                                 " ".join(long_opts)))
+            for o, a in opts:
                 if o.startswith('--'):
                     o = o[2:]
                 else:
@@ -220,7 +193,7 @@ class Magics(object):
                 try:
                     odict[o].append(a)
                 except AttributeError:
-                    odict[o] = [odict[o],a]
+                    odict[o] = [odict[o], a]
                 except KeyError:
                     if list_all:
                         odict[o] = [a]
@@ -231,6 +204,4 @@ class Magics(object):
         if mode == 'string':
             args = ' '.join(args)
 
-        return odict,args
-
-
+        return odict, args

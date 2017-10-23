@@ -6,8 +6,7 @@
 # 2. Fix mnemonics for Chinese calendar (cycle not working)
 
 import time
-import inspect
-from collections import OrderedDict as odict
+from collections import OrderedDict as ODict
 from mpmath import mpmathify, floor
 from unidecode import unidecode
 from . import pycalcal as pcc
@@ -16,8 +15,9 @@ from . import geolocation
 
 try:
     from builtins import str as text
-except:
+except ImportError:
     from __builtin__ import unicode as text
+
 
 def caldoc(c):
     import re
@@ -37,7 +37,7 @@ A date in this calendar can be specified as using the following formats:
     bounds = []
     for p in keys:
         _, min, max = c.dateparts[p]
-        bounds.append("%s [%s, %s]" % \
+        bounds.append("%s [%s, %s]" %
                       (p, "-inf" if min is None else min,
                        "+inf" if max is None else max))
     doc += """
@@ -45,8 +45,8 @@ The bounds for calendar parts are: %s.
 """ % (", ".join(bounds))
     for p in keys:
         if hasattr(c, p + "names"):
-            names = ["%s (%d)" % (v, n) \
-                     for n, v in enumerate(getattr(c, p + "names")) \
+            names = ["%s (%d)" % (v, n)
+                     for n, v in enumerate(getattr(c, p + "names"))
                      if v != ""]
             doc += """
 In the full date, the %s can be entered using the mnemonics: %s.
@@ -61,23 +61,24 @@ The calendar has the following known holidays: %s.
         doc += """
 The weekdays are %s.
 """ % ", ".join(c.weekdays)
-    doc += """
-Alternatively, the function can be used to represent an instant in the
-%s calendar.  The possible formats are:
-  1. A single float, the date as a fixed number (days and fractions of days since 12:00:00 of 31 December 1 B.C.E.)
-  2. A value with a time-like unit (time since 12:00:00 of 31 December 1 B.C.E.)
-  3. The single string "now", meaning the current instant
-  4. Any of the other previous formats, followed by 1 to 3 arguments: hours, minutes, and seconds.  Any of this argument can be a float
-
-In this calendar, the day start at %s.
-""" % (c.calendar, c.daystart)
+    doc += ("Alternatively, the function can be used to represent an instant in the\n"
+            "%s calendar. The possible formats are:\n"
+            "  1. A single float, the date as a fixed number (days and fractions of days "
+            "since 12:00:00 of 31 December 1 B.C.E.)\n"
+            "  2. A value with a time-like unit (time since 12:00:00 of 31 December 1 B.C.E.)\n"
+            "  3. The single string \"now\", meaning the current instant\n"
+            "  4. Any of the other previous formats, followed by 1 to 3 arguments: "
+            "hours, minutes, and seconds. Any of this argument can be a float\n\n"
+            "In this calendar, the day start at %s.\n") % (c.calendar, c.daystart)
     d = c.__dict__.copy()
     doc = unidecode(text(doc))
     pars = []
     for par in doc.split("\n"):
         m = re.match(" *([1-9][-.)]|[-*]) *", par)
-        if m: nl = "\n" + " "*len(m.group(0))
-        else: nl = "\n"
+        if m:
+            nl = "\n" + " "*len(m.group(0))
+        else:
+            nl = "\n"
         pars.append(nl.join(wrap(par)))
     d["__doc__"] = "\n".join(pars)
     return type(c.__name__, c.__bases__, d)
@@ -127,14 +128,15 @@ class CalDate(Value):
     """
     calendar = "Cal"                    # Name of the calendar
     prefix = ""                         # Prefix of functions in PyCalCal
-    dateparts = odict([                 # Parts of a date: name: (getter, min, max)
+    dateparts = ODict([                 # Parts of a date: name: (getter, min, max)
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 12)),
         ("day", (pcc.standard_day, 1, 31))])
-    holidays = odict()                  # dict of holidays
+    holidays = ODict()                  # dict of holidays
     holidayarg = 1                      # Which argument is the holiday name?
     daystart = "midnight"               # midnight, noon, sunset, sunrise, or time
     weeklen = 7                         # The length of a week
+
     def __init__(self, *opars, **kw):
         """Initialize an instance of the calendar (a date or a datetime).
 
@@ -182,30 +184,35 @@ class CalDate(Value):
         self.tz = kw.get("tz", None)
         self.fixed = None
         if len(pars) >= 1 and isinstance(pars[0], str) and \
-            pars[0] in ["today", "tomorrow", "yesterday"]:
+                pars[0] in ["today", "tomorrow", "yesterday"]:
             localtime = list(time.localtime()[0:6])
             now = GregorianDate(*localtime[0:3], datetime=True).fixed + \
                 (((localtime[3] - 12)*60 + localtime[4])*60 + localtime[5]) \
                 / 86400.0
-            if pars[0] == "tomorrow": now += 1
-            elif pars[0] == "yesterday": now -= 1
+            if pars[0] == "tomorrow":
+                now += 1
+            elif pars[0] == "yesterday":
+                now -= 1
             now = self.__class__(now, datetime=True)
             now.recalc()
             pars = list(now.date) + pars[1:]
         if len(pars) == 1:              # It's a fixed date, a copy, or "now"
             if isinstance(pars[0], CalDate):
                 self.fixed = pars[0].fixed
-                if self.datetime is None: self.datetime = pars[0].datetime
-                if self.tz is None: self.tz = pars[0].tz
+                if self.datetime is None:
+                    self.datetime = pars[0].datetime
+                if self.tz is None:
+                    self.tz = pars[0].tz
             elif isinstance(pars[0], Value):
                 if not pars[0].unit:
                     self.fixed = mpmathify(pars[0].value)
                 else:
-                    pars[0].checkUnits(self)
+                    pars[0].check_units(self)
                     self.fixed = mpmathify(pars[0].value / ref)
                 if self.datetime is None:
                     self.datetime = self.fixed != int(self.fixed)
-                elif not self.datetime: self.fixed = int(self.fixed)
+                elif not self.datetime:
+                    self.fixed = int(self.fixed)
             elif isinstance(pars[0], str):
                 if pars[0] == "now":
                     localtime = list(time.localtime()[0:6])
@@ -231,9 +238,9 @@ class CalDate(Value):
             return
         # Check possible holidays
         if len(pars) > self.holidayarg and \
-            isinstance(pars[self.holidayarg], str):
+                isinstance(pars[self.holidayarg], str):
             found = False
-            for hk,hw in self.holidays.items():
+            for hk, hw in self.holidays.items():
                 dpar = unidecode(text(pars[self.holidayarg])).lower()
                 if unidecode(text(hk)).lower() == dpar:
                     found = True
@@ -248,9 +255,9 @@ class CalDate(Value):
                                pars[self.holidayarg+1:]
                     break
             if not found and len(pars) == self.holidayarg + 1 and \
-                len(pars) < len(self.dateparts):
+                    len(pars) < len(self.dateparts):
                 raise ValueError("Unknown holiday '%s' for %s calendar" %
-                                 (pars[holidayarg], self.calendar))
+                                 (pars[self.holidayarg], self.calendar))
         if len(pars) >= len(self.dateparts):
             if self.datetime is None:
                 self.datetime = len(pars) > len(self.dateparts)
@@ -259,11 +266,12 @@ class CalDate(Value):
                 # First check if we are using mnemonics
                 if isinstance(pars[n], str):
                     parser = getattr(self, "parse_" + par, None)
-                    if callable(parser): pars[n] = parser(pars[n])
+                    if callable(parser):
+                        pars[n] = parser(pars[n])
                     else:
                         parser = getattr(self, par + "names", None)
                         if parser:
-                            parser = tuple(unidecode(text(a)).lower() \
+                            parser = tuple(unidecode(text(a)).lower()
                                            for a in parser)
                             try:
                                 pars[n] = parser.index(unidecode(text(pars[n])).lower())
@@ -276,27 +284,31 @@ class CalDate(Value):
                 # Now check boundaries
                 par_n = int(pars[n])
                 if min is not None and par_n < min:
-                    raise ValueError("%s: value %d for %s is smaller than minimum acceptable (%d)" % (self.calendar, int(par_n), par, min))
+                    raise ValueError("%s: value %d for %s is smaller than minimum acceptable (%d)" %
+                                     (self.calendar, int(par_n), par, min))
                 if max is not None and par_n > max:
-                    raise ValueError("%s: value %d for %s is larger than maximum acceptable (%d)" % (self.calendar, par_n, par, max))
+                    raise ValueError("%s: value %d for %s is larger than maximum acceptable (%d)" %
+                                     (self.calendar, par_n, par, max))
             # Finally perform the conversion using the PyCalCal functions
-            self.date = getattr(pcc, self.prefix + "_date") \
-                (*[int(p) for p in pars[0:len(self.dateparts)]])
+            self.date = getattr(pcc, self.prefix + "_date")(*[int(p) for p in pars[0:len(self.dateparts)]])
             self.fixed = getattr(pcc, "fixed_from_" + self.prefix)(self.date)
         else:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
         # All the following is for datetimes
+        daylength = 1.0  # The length of the current day in days...
         if self.datetime:
             # First we need to "massage" self.fixed: make it a float number,
             # and correct it for the daystart calendar attribute.
             self.fixed = mpmathify(self.fixed)
-            daylength = 1.0             # The length of the current day in days...
             rest = pars[len(self.dateparts):] + [0, 0, 0]
             rest0 = mpmathify(rest[0])  # Hours: used for sunset-sunrise calendars
-            if self.daystart == "midnight": pass
-            elif self.daystart == "noon": self.fixed += 0.5
-            elif self.daystart == "6:00": self.fixed += 0.25
+            if self.daystart == "midnight":
+                pass
+            elif self.daystart == "noon":
+                self.fixed += 0.5
+            elif self.daystart == "6:00":
+                self.fixed += 0.25
             elif self.daystart == "sunrise":
                 f = sunrise(self.fixed)
                 daylength = sunrise(self.fixed + 1) - f
@@ -311,7 +323,7 @@ class CalDate(Value):
                     daylength = (sunset(self.fixed) - f)*2
                 else:
                     f = sunset(self.fixed)
-                    daylength = (sunrise(self + 1) - f)*2
+                    daylength = (sunrise(self.fixed + 1) - f)*2
                     pars[len(self.dateparts)] -= 12
                 self.fixed += f - floor(f) - 0.5
             elif self.daystart == "sunset-sunrise":
@@ -324,15 +336,17 @@ class CalDate(Value):
                     pars[len(self.dateparts)] -= 12
                 self.fixed += f - floor(f) - 0.5
         if len(pars) > len(self.dateparts):
-            mins = [0,0,0]
-            maxs = [24,60,60]
+            mins = [0, 0, 0]
+            maxs = [24, 60, 60]
             names = ["hour", "minute", "second"]
             rest = pars[len(self.dateparts):] + [0, 0, 0]
-            for n in [0,1,2]:
+            for n in [0, 1, 2]:
                 if rest[n] < mins[n]:
-                    raise ValueError("%s: value %d for %s is smaller than minimum acceptable (%d)" % (self.__class__.__name__, rest[n], names[n], mins[n]))
+                    raise ValueError("%s: value %d for %s is smaller than minimum acceptable (%d)" %
+                                     (self.__class__.__name__, rest[n], names[n], mins[n]))
                 if rest[n] >= maxs[n]:
-                    raise ValueError("%s: value %d for %s is not smaller than maximum acceptable (%d)" % (self.__class__.__name__, rest[n], names[n], maxs[n]))
+                    raise ValueError("%s: value %d for %s is not smaller than maximum acceptable (%d)" %
+                                     (self.__class__.__name__, rest[n], names[n], maxs[n]))
             f = mpmathify(rest[0])/24 + mpmathify(rest[1])/1440 + \
                 mpmathify(rest[2])/86400
             self.fixed += f / daylength - 0.5
@@ -348,9 +362,11 @@ class CalDate(Value):
         return result
     copy = __copy__
     __deepcopy__ = __copy__
+
     # A.2. Sums and subtractions
     def __add__(self, y):
-        if not isinstance(y, Value): y = Value(y)
+        if not isinstance(y, Value):
+            y = Value(y)
         if not bool(y.unit):
             delta = y.value
             datetime = self.datetime or not isinstance(delta, (int, long))
@@ -361,6 +377,7 @@ class CalDate(Value):
             raise ValueError("Cannot add two absolute values")
         return self.__class__(self.fixed + delta, datetime=datetime,
                               tz=self.tz)
+
     def __sub__(self, y):
         if isinstance(y, Value):
             if not bool(y.unit):
@@ -384,20 +401,26 @@ class CalDate(Value):
         else:
             return Value(self.fixed - delta, "day")
     __radd__ = __add__
+
     def __rsub__(self, y):
         return y.__sub__(self)
     
     # A.4. String operations
     def __repr__(self):
         return str(self)
+
     def _repr_latex_(self):
         return str(self)
+
     def __str__(self):
         return unidecode(self)
+
     def show(self):
         return self.calendar + "(" + ",".join(map(str, self.date)) + ")"
+
     def showtimeofday(self):
-        if self.datetime == False: return ""
+        if self.datetime is False:
+            return ""
         fday = self.fixed - round(self.fixed)
         f = (fday + 0.5) * 24 + 0.5 / 3600
         h = floor(f)
@@ -405,39 +428,48 @@ class CalDate(Value):
         m = floor(f)
         f = (f - m)*60
         s = floor(f)
-        f = (f - m)*1000
-        ms = floor(f)
-        if h or m or s or self.datetime: return ", %02d:%02d:%02d" % (h, m, s)
-        else: return ""
+        # f = (f - m)*1000
+        # ms = floor(f)
+        if h or m or s or self.datetime:
+            return ", %02d:%02d:%02d" % (h, m, s)
+        else:
+            return ""
 
     # B. Data update and extraction
     def recalc(self):
         if not self.date:
             fixed = self.fixed
             if self.datetime:
-                if self.daystart == "midnight": pass
-                elif self.daystart == "noon": fixed -= 0.5
-                elif self.daystart == "6:00": fixed -= 0.25
+                if self.daystart == "midnight":
+                    pass
+                elif self.daystart == "noon":
+                    fixed -= 0.5
+                elif self.daystart == "6:00":
+                    fixed -= 0.25
                 elif self.daystart == "sunrise":
-                    for iter in [0,1]:
+                    for iter in [0, 1]:
                         f = sunrise(fixed)
                         fixed = self.fixed - (f - floor(f) - 0.5)
                 elif self.daystart == "sunset":
-                    for iter in [0,1]:
+                    for iter in [0, 1]:
                         f = sunset(fixed - 1)
                         fixed = self.fixed - (f - floor(f) - 0.5)
             self.date = getattr(pcc, self.prefix + "_from_fixed")(int(round(fixed)))
         return self
+
     def __dir__(self):
         names = ["realdate", "weekday"] + \
                 self.dateparts.keys() + self.__dict__.keys()
         o = self.__class__
         while True:
             names = names + o.__dict__.keys()
-            if o.__bases__: o = o.__bases__[0]
-            else: break
+            if o.__bases__:
+                o = o.__bases__[0]
+            else:
+                break
         names.sort()
         return names
+
     def __getattr__(self, name):
         if name in self.dateparts.keys():
             self.recalc()
@@ -448,8 +480,10 @@ class CalDate(Value):
         elif name == 'weekday':
             if self.datetime:
                 self.recalc()
-                if self.daystart == 'noon': offset = -1
-                else: offset = 0
+                if self.daystart == 'noon':
+                    offset = -1
+                else:
+                    offset = 0
                 return pcc.day_of_week_from_fixed(int(round(self.fixed))
                                                   + offset)
             else:
@@ -461,29 +495,43 @@ class CalDate(Value):
     # C. Year operations (use only the year of self)
     def is_leap_year(self):
         return getattr(pcc, "is_" + self.prefix + "_leap_year")(self.year)
-    def is_leap_year(self): pass
-    def year_begin(self): pass
-    def year_end(self): pass
-    def specialday(self, name): pass
+
+    def year_begin(self):
+        pass
+
+    def year_end(self):
+        pass
+
+    def specialday(self, name):
+        pass
 
     # D. Weekday operations
     def kday_on_or_before(self, k):
-        return self - (self - k).weekday;
+        return self - (self - k).weekday
+
     def kday_on_or_after(self, k):
         return (self + self.weeklen - 1).kday_on_or_before(k)
+
     def kday_before(self, k):
-        return (self - 1).kday_on_or_before(k);
+        return (self - 1).kday_on_or_before(k)
+
     def kday_after(self, k):
-        return (self + self.weeklen).kday_on_or_before(k);
+        return (self + self.weeklen).kday_on_or_before(k)
+
     def kday_nearest(self, k): 
         return (self + self.weeklen/2).kday_on_or_before(k)
+
     def kday_nth(self, k, n):
         if n > 0:
-            if n == int(n): return self.weeklen*n + self.kday_on_or_before(k)
-            else: return self.weeklen*int(n + 1) + self.kday_before(k)
+            if n == int(n):
+                return self.weeklen*n + self.kday_on_or_before(k)
+            else:
+                return self.weeklen*int(n + 1) + self.kday_before(k)
         elif n < 0:
-            if n == int(n): return self.weeklen*n + self.kday_on_or_after(k)
-            else: return self.weeklen*int(n - 1) + self.kday_after(k)
+            if n == int(n):
+                return self.weeklen*n + self.kday_on_or_after(k)
+            else:
+                return self.weeklen*int(n - 1) + self.kday_after(k)
         elif n == 0:
             return self.kday_nearest(k)
 
@@ -493,28 +541,34 @@ class CalDate(Value):
 class JDDate(CalDate):
     calendar = "JD"
     prefix = "jd"
-    dateparts = odict([
+    dateparts = ODict([
         ("jd", (lambda x: x[0], None, None))])
+
     def __init__(self, *pars, **kw):
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
         self.date = None
-        if isinstance(pars[0], CalDate): self.fixed = pars[0].fixed
-        elif kw.get("date", False) == False:
+        if isinstance(pars[0], CalDate):
+            self.fixed = pars[0].fixed
+        elif kw.get("date", False) is False:
             self.fixed = pars[0]
         else:
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_jd(pars[0])
         self.weeklen = 7
+
     def recalc(self):
         if not self.date:
             self.date = (pcc.jd_from_fixed(self.fixed),)
         return self
+
     def __str__(self):
         return "JD%d" % self.date[0]
+
     def year_begin(self):
         raise NotImplemented
+
     def year_end(self):
         raise NotImplemented
 
@@ -523,28 +577,34 @@ class JDDate(CalDate):
 class MJDDate(CalDate):
     calendar = "MJD"
     prefix = "mjd"
-    dateparts = odict([
+    dateparts = ODict([
         ("mjd", (lambda x: x[0], None, None))])
+
     def __init__(self, *pars, **kw):
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
         self.date = None
-        if isinstance(pars[0], CalDate): self.fixed = pars[0].fixed
-        elif kw.get("date", False) == False:
+        if isinstance(pars[0], CalDate):
+            self.fixed = pars[0].fixed
+        elif kw.get("date", False) is False:
             self.fixed = pars[0]
         else:
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_mjd(pars[0])
         self.weeklen = 7
+
     def recalc(self):
         if not self.date:
             self.date = (pcc.mjd_from_fixed(self.fixed),)
         return self
+
     def __str__(self):
         return "MJD%d" % self.date[0]
+
     def year_begin(self):
         raise NotImplemented
+
     def year_end(self):
         raise NotImplemented
 
@@ -558,9 +618,9 @@ class GregorianDate(CalDate):
                 'Friday', 'Saturday')
     monthnames = ("", "January", "February", "March", "April", "May", "June", "July",
                   "August", "September", "October", "November", "December")
-    holidays = odict([
-        ("New Year", (1,1)),
-        ("Epiphany", (1,6)),
+    holidays = ODict([
+        ("New Year", (1, 1)),
+        ("Epiphany", (1, 6)),
         ("Easter", pcc.easter),
         ("Septuagesima Sunday", lambda y: pcc.easter(y) - 63),
         ("Sexagesima Sunday", lambda y: pcc.easter(y) - 56),
@@ -584,12 +644,15 @@ class GregorianDate(CalDate):
         ("Fest of Orthodoxy", lambda y: pcc.orthodox_easter(y) - 42),
         ("Advent", lambda y: GregorianDate(y, 11, 30).kday_nearest(0)),
         ("Christmas", (12, 25))])
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def year_begin(self):
         return GregorianDate(self.year, 1, 1)
+
     def year_end(self):
         return GregorianDate(self.year, 12, 31)
 
@@ -605,9 +668,9 @@ class JulianDate(CalDate):
                 'Saturni dies (Sabbatum)')
     monthnames = ("", "Januarius", "Februarius", "Mars", "Aprilis", "Maius", "Iunius",
                   "Julius", "Augustus", "September", "October", "November", "December")
-    holidays = odict([
-        ("New Year", (1,1)),
-        ("Epiphany", (1,6)),
+    holidays = ODict([
+        ("New Year", (1, 1)),
+        ("Epiphany", (1, 6)),
         ("Easter", pcc.easter),
         ("Septuagesima Sunday", lambda y: pcc.easter(y) - 63),
         ("Sexagesima Sunday", lambda y: pcc.easter(y) - 56),
@@ -631,19 +694,25 @@ class JulianDate(CalDate):
         ("Fest of Orthodoxy", lambda y: pcc.orthodox_easter(y) - 42),
         ("Advent", lambda y: GregorianDate(y, 11, 30).kday_nearest(0)),
         ("Christmas", (12, 25))])
+
     def __init__(self, *pars, **kw):
         CalDate.__init__(self, *pars, **kw)
         if len(pars) == 3:
             self.date = pcc.julian_date(*pars)
             self.fixed = pcc.fixed_from_julian(self.date)
+
     def __str__(self):
-        if self.year > 0: era = "C.E."
-        else: era = "B.C.E."
+        if self.year > 0:
+            era = "C.E."
+        else:
+            era = "B.C.E."
         return "%s, %d %s %d %s%s" % (self.weekdays[self.weekday], self.day,
                                       self.monthnames[self.month], abs(self.year), era,
                                       self.showtimeofday())
+
     def year_begin(self):
         return JulianDate(self.year, 1, 1)
+
     def year_end(self):
         return JulianDate(self.year, 12, 31)
 
@@ -653,7 +722,7 @@ class JulianDate(CalDate):
 class RomanDate(CalDate):
     calendar = "Roman"
     prefix = "roman"                    # Prefix of functions in PyCalCal
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.roman_year, None, None)),
         ("month", (pcc.roman_month, 1, 12)),
         ("event", (pcc.roman_event, 1, 3)),
@@ -671,13 +740,16 @@ class RomanDate(CalDate):
                      "Novembribus", "Decembribus")
     eventsacc = ("Kalendas", "Nonas", "Idus")
     eventsabl = ("Kalendis", "Nonis", "Idibus")
+
     def __init__(self, *pars, **kw):
         CalDate.__init__(self, *pars, **kw)
         if len(pars) == 5:
             self.date = pcc.roman_date(*pars)
             self.fixed = pcc.fixed_from_julian(self.date)
+
     def __str__(self):
-        if self.leap: count = "a.d. bis vi "
+        if self.leap:
+            count = "a.d. bis vi "
         else: 
             count = ["", "pridie ", "a.d. iii ", "a.d. iv ", "a.d. v ", "a.d. vi ",
                      "a.d. vii ", "a.d. viii ", "a.d. ix ", "a.d. x ", "a.d. xi ",
@@ -691,10 +763,13 @@ class RomanDate(CalDate):
         return "%s, %s %d A.U.C.%s" % (self.weekdays[self.weekday], event,
                                        pcc.auc_year_from_julian_year(self.year),
                                        self.showtimeofday())
+
     def is_leap_year(self):
         return pcc.is_julian_leap_year(self.year)
+
     def year_begin(self):
         return RomanDate(self.year, 1, 1)
+
     def year_end(self):
         return RomanDate(self.year, 12, 31)
 
@@ -704,7 +779,7 @@ class RomanDate(CalDate):
 class EgyptianDate(CalDate):
     calendar = "Egyptian"
     prefix = "egyptian"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 13)),
         ("day", (pcc.standard_day, 1, 30))])
@@ -717,13 +792,17 @@ class EgyptianDate(CalDate):
                   "First of Shemu (Pachon)", "Second of Shemu (Payni)",
                   "Third of Shemu (Epiphi)", "Fourth of Shemu (Mesori)",
                   "Epagomenae")
+
     def __str__(self):
         return "%d %s %d%s" % (self.day, self.monthnames[self.month], self.year,
                                self.showtimeofday())
+
     def is_leap_year(self):
         return False
+
     def year_begin(self):
         return EgyptianDate(self.year, 1, 1)
+
     def year_end(self):
         return EgyptianDate(self.year, 13, 5)
 
@@ -733,7 +812,7 @@ class EgyptianDate(CalDate):
 class ArmenianDate(CalDate):
     calendar = "Armenian"
     prefix = "armenian"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 13)),
         ("day", (pcc.standard_day, 1, 31))])
@@ -742,13 +821,17 @@ class ArmenianDate(CalDate):
     monthnames = ("", "Nawasardi", "Hori", "Sahimi", u"Trē", "K`aloch", "Arach",
                   "Mehekani", "Areg", "Ahekani", "Mareri", "Margach", "Hrotich",
                   "Epagomenae")
+
     def __str__(self):
         return "%d %s %d%s" % (self.day, self.monthnames[self.month], self.year,
                                self.showtimeofday())
+
     def is_leap_year(self):
         return False
+
     def year_begin(self):
         return ArmenianDate(self.year, 1, 1)
+
     def year_end(self):
         return ArmenianDate(self.year, 13, 5)
 
@@ -758,29 +841,36 @@ class ArmenianDate(CalDate):
 class ISODate(CalDate):
     calendar = "ISO"
     prefix = "iso"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.iso_year, None, None)),
         ("week", (pcc.iso_week, 1, 53)),
         ("day", (pcc.iso_day, 1, 7))])
     weekdays = ('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
                 'Friday', 'Saturday')
+
     def __str__(self):
         return "%s, week %d, %d%s" % (self.weekdays[self.weekday], self.week,
                                       self.year, self.showtimeofday())
+
     def is_leap_year(self):
         return pcc.is_iso_long_year(self.year)
+
     def year_begin(self):
         return ISODate(self.year, 1, 1)
+
     def year_end(self):
-        if self.is_leap_year(): return ISODate(self.year, 53, 7)
-        else: return ISODate(self.year, 52, 7)
-    
+        if self.is_leap_year():
+            return ISODate(self.year, 53, 7)
+        else:
+            return ISODate(self.year, 52, 7)
+
+
 # Coptic Dates
 @caldoc
 class CopticDate(CalDate):
     calendar = "Coptic"
     prefix = "coptic"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 13)),
         ("day", (pcc.standard_day, 1, 31))])
@@ -790,12 +880,15 @@ class CopticDate(CalDate):
                   "Paremotep", "Parmoute", "Pashons", u"Paōne", u"Epēp", u"Mesorē",
                   u"Epagomenē")
     daystart = "sunset"              # midnight, noon, sunset, sunrise
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def year_begin(self):
         return CopticDate(self.year, 1, 1)
+
     def year_end(self):
         return CopticDate(self.year, 12, 31)
         
@@ -805,7 +898,7 @@ class CopticDate(CalDate):
 class EthiopicDate(CalDate):
     calendar = "Ethiopic"
     prefix = "ethiopic"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 13)),
         ("day", (pcc.standard_day, 1, 31))])
@@ -814,12 +907,15 @@ class EthiopicDate(CalDate):
                   u"Magābit", u"Miyāzyā", "Genbot", u"Sanē", u"Ḥamlē", u"Naḥasē",
                   u"Pāguemēn")
     daystart = "sunset"              # midnight, noon, sunset, sunrise
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def year_begin(self):
         return EthiopicDate(self.year, 1, 1)
+
     def year_end(self):
         return EthiopicDate(self.year, 12, 31)
 
@@ -829,17 +925,17 @@ class EthiopicDate(CalDate):
 class IslamicDate(CalDate):
     calendar = "Islamic"
     prefix = "islamic"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 12)),
         ("day", (pcc.standard_day, 1, 30))])
     weekdays = (u"Yawm al-aḥad", "Yawm al-ithnayna", u"Yawm ath-thalāthā'",
-                    u"Yawm al-arba`ā'", u"Yawm al-ẖamīs", "Yawm al-jumu`ah",
-                    "Yawm as-sabt")
+                u"Yawm al-arba`ā'", u"Yawm al-ẖamīs", "Yawm al-jumu`ah",
+                "Yawm as-sabt")
     monthnames = ("", u"Muḥarram", u"Ṣafar", u"Rabī` I", u"Rabī` II", u"Jumādā I",
                   u"Jumādā II", "Rajab", u"Sha`bān", u"Ramaḍān", u"Shawwāl",
                   u"Dhu al-Qa'da", u"Dhu al-Ḥijja")
-    holidays = odict([
+    holidays = ODict([
         ("New Year", (1, 1)),
         (u"Ashūrā'", (1, 10)),
         (u"Muwlid an-Nabī", (3, 12)),
@@ -847,46 +943,57 @@ class IslamicDate(CalDate):
         (u"`Īd-al-Fiṭr", (10, 1)),
         (u"`Īd-al-'Aḍḥā", (12, 10))])
     daystart = "sunset"              # midnight, noon, sunset, sunrise
+
     def __str__(self):
         return u"%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                     self.monthnames[self.month], self.year,
                                     self.showtimeofday())
+
     def year_begin(self):
         return IslamicDate(self.year, 1, 1)
+
     def year_end(self):
         return IslamicDate(self.year + 1, 1, 1) - 1
-        if self.is_leap_year(): return IslamicDate(self.year, 12, 30)
-        else: return IslamicDate(self.year, 12, 29)
 
     
 # Hebrew Dates
 def hebrew_ta_anit_esther(year):
     d = pcc.fixed_from_hebrew(pcc.hebrew_date(year,
                                               pcc.last_month_of_hebrew_year(year), 14))
-    if pcc.day_of_week_from_fixed(d) == 0: d -= 2
+    if pcc.day_of_week_from_fixed(d) == 0:
+        d -= 2
     return d
+
+
 def hebrew_fast_day(year, month, day):
     d = pcc.fixed_from_hebrew(pcc.hebrew_date(year, month, day))
-    if pcc.day_of_week_from_fixed(d) == 6: d += 1
+    if pcc.day_of_week_from_fixed(d) == 6:
+        d += 1
     return d
+
+
 def hebrew_yom_ha_shoah(year):
     d = pcc.fixed_from_hebrew(pcc.hebrew_date(year, 1, 27))
-    if pcc.day_of_week_from_fixed(d) == 0: d += 1
+    if pcc.day_of_week_from_fixed(d) == 0:
+        d += 1
     return d
+
+
 def hebrew_yom_ha_zikkaron(year):
     iyyar4 = pcc.fixed_from_hebrew(pcc.hebrew_date(year, pcc.IYYAR, 4))
-    if (pcc.day_of_week_from_fixed(iyyar4) in [pcc.THURSDAY, pcc.FRIDAY]):
+    if pcc.day_of_week_from_fixed(iyyar4) in [pcc.THURSDAY, pcc.FRIDAY]:
         return pcc.kday_before(pcc.WEDNESDAY, iyyar4)
-    elif (pcc.SUNDAY == pcc.day_of_week_from_fixed(iyyar4)):
+    elif pcc.SUNDAY == pcc.day_of_week_from_fixed(iyyar4):
         return iyyar4 + 1
     else:
         return iyyar4
+
 
 @caldoc
 class HebrewDate(CalDate):
     calendar = "Hebrew"
     prefix = "hebrew"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 13)),
         ("day", (pcc.standard_day, 1, 30))])
@@ -894,7 +1001,7 @@ class HebrewDate(CalDate):
                 u"Yom ḥamishi", "Yom shishi", "Yom shabbat")
     monthnames = ("", "Nisan", "Iyyar", "Sivan", "Tammuz", "Av", "Elul", "Tishri",
                   u"Marḥeshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar II")    
-    holidays = odict([
+    holidays = ODict([
         ("Rosh ha-Shanah", (7, 1)),
         ("Yom Kippur", (7, 10)),
         ("Sukkot", (7, 15)),
@@ -904,7 +1011,7 @@ class HebrewDate(CalDate):
         ("Passover", (1, 15)),
         ("Ending of passover", (1, 21)),
         ("Shavuot", (3, 6)),
-        ("Purim", lambda y: \
+        ("Purim", lambda y:
          pcc.fixed_from_hebrew(pcc.hebrew_date(y, pcc.last_month_of_hebrew_year(y),
                                                14))),
         # Fast days
@@ -917,14 +1024,17 @@ class HebrewDate(CalDate):
         ("Yom ha-Zikkaron", hebrew_yom_ha_zikkaron)])
     # Go ahead p. 136 with "Ta'anit Esther"
     daystart = "sunset"               # midnight, noon, sunset, sunrise
+
     def __str__(self):
         return u"%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                     self.monthnames[self.month], self.year,
                                     self.showtimeofday())
+
     def year_begin(self):
-        return HewbrewDate(pcc.hebrew_new_year(self.year))
+        return HebrewDate(pcc.hebrew_new_year(self.year))
+
     def year_end(self):
-        return self.year_begin() + days_in_hebrew_year(self.year) - 1
+        return HebrewDate(pcc.hebrew_new_year(self.year + 1)) - 1
     
 
 # Mayan Long Count Dates
@@ -932,22 +1042,28 @@ class HebrewDate(CalDate):
 class MayanLongCountDate(CalDate):
     calendar = "MayanLongCount"
     prefix = "mayan_long_count"
-    dateparts = odict([
+    dateparts = ODict([
         ("baktun", (pcc.mayan_baktun, None, None)),
         ("katun", (pcc.mayan_katun, 0, 19)),
         ("tun", (pcc.mayan_tun, 0, 17)),
         ("uinal", (pcc.mayan_uinal, 0, 19)),
         ("kin", (pcc.mayan_kin, 0, 19))])
+
     def __str__(self):
         return u"%d.%d.%d.%d.%d%s" % (self.baktun, self.katun, self.tun, self.uinal,
                                       self.kin, self.showtimeofday())
+
     def is_leap_year(self):
         return False
+
     def year_begin(self):
         return MayanLongCountDate(self.baktun, 0, 0, 0, 0)
+
     def year_end(self):
-        if self.is_leap_year(): return MayanLongCountDate(self.year, 12, 30)
-        else: return MayanLongCountDate(self.baktun, 19, 19, 17, 19)
+        if self.is_leap_year():
+            return MayanLongCountDate(self.year, 12, 30)
+        else:
+            return MayanLongCountDate(self.baktun, 19, 19, 17, 19)
 
     
 # Old Hindu Lunar Date
@@ -955,7 +1071,7 @@ class MayanLongCountDate(CalDate):
 class OldHinduLunarDate(CalDate):
     calendar = "OldHinduLunar"
     prefix = "old_hindu_lunar"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.old_hindu_lunar_year, None, None)),
         ("month", (pcc.old_hindu_lunar_month, 1, 12)),
         ("leap", (pcc.old_hindu_lunar_leap, 0, 1)),
@@ -966,14 +1082,19 @@ class OldHinduLunarDate(CalDate):
                   u"Bhādrapada", u"Āśvina", u"Kārtika", u"Mārgaśīrṣa", u"Pauṣa",
                   u"Māgha", u"Phālguna")
     daystart = "6:00"              # midnight, noon, sunset, sunrise
+
     def __str__(self):
-        if self.leap: added = " adhika"
-        else: added = ""
+        if self.leap:
+            added = " adhika"
+        else:
+            added = ""
         return "%s, %d %s%s %d%s" % (self.weekdays[self.weekday], self.day,
                                      self.monthnames[self.month], added, self.year,
                                      self.showtimeofday())
+
     def year_begin(self):
         return OldHinduLunarDate(self.year, 1, self.is_leap_year(), 1)
+
     def year_end(self):
         raise NotImplemented
 
@@ -988,12 +1109,15 @@ class OldHinduSolarDate(CalDate):
     monthnames = ("", u"Meṣa", u"Vṛṣabha", "Mithuna", "Karka", u"Siṃha", u"Kanyā",
                   u"Tulā", u"Vṛścika", u"Dhanus", "Makara", u"Mīna")
     daystart = "6:00"              # midnight, noon, sunset, sunrise
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def year_begin(self):
         return OldHinduSolarDate(self.year, 1, 1)
+
     def year_end(self):
         return OldHinduSolarDate(self.year + 1, 1, 1) - 1
 
@@ -1008,28 +1132,36 @@ class PersianDate(CalDate):
     monthnames = ("", u"Farvardīn", u"Ordībehesht", u"Xordād", u"Tīr", u"Mordād",
                   u"Shahrīvar", u"Mehr", u"Ābān", u"Ābān", u"Āzar", "Dey",
                   "Bahman", "Esfand")
-    holidays = odict([
+    holidays = ODict([
         ("Naz Ruz", (1, 1))])
     daystart = "noon"
+
     def __init__(self, *pars, **kw):
         CalDate.__init__(self, *pars, **kw)
         if len(pars) == 3:
             self.date = pcc.persian_date(*pars)
             self.fixed = pcc.fixed_from_persian(self.date)
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def recalc(self):
-        if not self.date: self.date = pcc.persian_from_fixed(self.fixed)
+        if not self.date:
+            self.date = pcc.persian_from_fixed(self.fixed)
         return self
+
     def is_leap_year(self):
         return (self.year_end() - self.year_begin()) == 365
+
     def year_begin(self):
         return PersianDate(self.year, 1, 1)
+
     def year_end(self):
         year = self.year + 1
-        if year == 0: year = 1
+        if year == 0:
+            year = 1
         return PersianDate(year, 1, 1) - 1
 
 
@@ -1038,7 +1170,7 @@ class PersianDate(CalDate):
 class BahaiDate(CalDate):
     calendar = "Bahai"
     prefix = "bahai"
-    dateparts = odict([
+    dateparts = ODict([
         ("major", (pcc.bahai_major, None, None)),
         ("cycle", (pcc.bahai_cycle, 1, 19)),
         ("year", (pcc.bahai_year, 1, 19)), 
@@ -1049,14 +1181,14 @@ class BahaiDate(CalDate):
     daynames = (u"Bahā", u"Jalāl", u"Jamāl", u"`Aẓamat", u"Nūr", u"Raḥmat", u"Kalimāt",
                 u"Kamāl", u"Asmā", u"`Izzat", u"Mashīyyat", u"`Ilm", u"Qudrat",
                 u"Qawl", u"Masā'il", u"Sharaf", u"Sulṭān", u"Mulk", u"`Alā")
-    monthnames = (u"Ayyām-i-Hā", # This is month 0!
+    monthnames = (u"Ayyām-i-Hā",  # This is month 0!
                   u"Bahā", u"Jalāl", u"Jamāl", u"`Aẓamat", u"Nūr", u"Raḥmat", u"Kalimāt",
                   u"Kamāl", u"Asmā", u"`Izzat", u"Mashīyyat", u"`Ilm", u"Qudrat",
                   u"Qawl", u"Masā'il", u"Sharaf", u"Sulṭān", u"Mulk", u"`Alā")
     yearnames = (u"Alif", u"Bā'", u"Āb", u"Dāl", u"Bāb", u"Vāv", u"Abad", u"Jād",
                  u"Bahā'", u"Ḥubb", u"Bahhāj", u"Javāb", u"Aḥad", u"Vahhāb", u"Vidād",
                  u"Badī'", u"Bahī", u"Abhā", u"Vāḥid")
-    holidays = odict([
+    holidays = ODict([
         (u"Feast of Naz-Rūz", (1, 1)),
         (u"Feast of Riḍvān", (2, 13)),
         (u"Riḍvān 9", (2, 29)),
@@ -1070,16 +1202,20 @@ class BahaiDate(CalDate):
         (u"Ascension of `Abdu'l-Bahā", (14, 6))])
     holidayarg = 3
     daystart = "sunset"
+
     def __str__(self):
         return "%s, day (%d) %s, month (%d) %s, year (%d) %s, cycle %d%s" % \
                (self.weekdays[self.weekday], self.day, self.daynames[self.day - 1],
                 self.month, self.monthnames[self.month],
                 self.year, self.yearnames[self.year-1], self.cycle,
                 self.showtimeofday())
+
     def is_leap_year(self):
         return (self.year_end() - self.year_begin()) == 365
+
     def year_begin(self):
         return BahaiDate(self.major, self.cycle, self.year, 1, 1)
+
     def year_end(self):
         return BahaiDate(self.major, self.cycle, self.year, 19, 19)
 
@@ -1089,7 +1225,7 @@ class BahaiDate(CalDate):
 class ChineseDate(CalDate):
     calendar = "Chinese"
     prefix = "chinese"
-    dateparts = odict([
+    dateparts = ODict([
         ("cycle", (pcc.chinese_cycle, None, None)),
         ("year", (pcc.chinese_year, 1, 60)),
         ("month", (pcc.chinese_month, 1, 12)),
@@ -1099,7 +1235,7 @@ class ChineseDate(CalDate):
              u"Rén", u"Guĭ")
     branches = (u"Zĭ", u"Chŏu", u"Yín", u"Măo", u"Chén", u"Sì", u"Wŭ", u"Wèi",
                 u"Shēn", u"Yŏu", u"Xū", u"Hài")
-    holidays = odict([
+    holidays = ODict([
         ("New Year", (1, 0, 1)),
         ("Lantern Festival", (1, 0, 15)),
         ("Dragon Festival", (5, 0, 5)),
@@ -1107,33 +1243,40 @@ class ChineseDate(CalDate):
         ("Hungry Ghosts", (7, 0, 15)),
         ("Mid-AUtumn Festival", (8, 0, 15)),
         ("Double-Ninth Festival", (9, 0, 9))])
+
     def __str__(self):
         year = self.year
         year_name = pcc.chinese_year_name(year)
         year_name = self.stems[pcc.chinese_stem(year_name)-1] + "-" + \
-                    self.branches[pcc.chinese_branch(year_name)-1]
+            self.branches[pcc.chinese_branch(year_name)-1]
         month = self.month
-        if self.leap: month_name = "leap"
+        if self.leap:
+            month_name = "leap"
         else:
             month_name = pcc.chinese_month_name(month, year)
             month_name = self.stems[pcc.chinese_stem(month_name)-1] + "-" + \
-                         self.branches[pcc.chinese_branch(month_name)-1]
+                self.branches[pcc.chinese_branch(month_name)-1]
         day = self.day
         day_name = pcc.chinese_day_name(day)
         day_name = self.stems[pcc.chinese_stem(day_name)-1] + "-" + \
-                   self.branches[pcc.chinese_branch(day_name)-1]
+            self.branches[pcc.chinese_branch(day_name)-1]
         return "Cycle %d, year %d (%s), month %d (%s), day %d (%s)%s" % \
-               (self.cycle, year, year_name, month, month_name, day, day_name,
-                self.showtimeofday())
+            (self.cycle, year, year_name, month, month_name, day, day_name,
+             self.showtimeofday())
+
     def is_leap_year(self):
         raise NotImplemented
+
     def year_begin(self):
         return ChineseDate(pcc.chinese_new_year_on_or_before(self.fixed))
+
     def year_end(self):
         raise NotImplemented
-ChineseDate.yearnames = ('',) + tuple(ChineseDate.stems[pcc.amod(n,10)-1] +
-                                      ChineseDate.branches[pcc.amod(n,12)-1]
-                                      for n in range(1,60))
+
+
+ChineseDate.yearnames = ('',) + tuple(ChineseDate.stems[pcc.amod(n, 10)-1] +
+                                      ChineseDate.branches[pcc.amod(n, 12)-1]
+                                      for n in range(1, 60))
 ChineseDate.monthnames = ChineseDate.yearnames
 ChineseDate.daynames = ChineseDate.yearnames
 
@@ -1143,7 +1286,7 @@ ChineseDate.daynames = ChineseDate.yearnames
 class HinduLunarDate(CalDate):
     calendar = "HinduLunar"
     prefix = "hindu_lunar"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.hindu_lunar_year, None, None)),
         ("month", (pcc.hindu_lunar_month, 1, 12)),
         ("leap_month", (pcc.hindu_lunar_leap_month, 0, 1)),
@@ -1155,16 +1298,23 @@ class HinduLunarDate(CalDate):
                   u"Bhādrapada", u"Āśvina", u"Kārtika", u"Mārgaśīrṣa", u"Pauṣa",
                   u"Māgha", u"Phālguna")
     daystart = "sunrise"
+
     def __str__(self):
-        if self.leap_month: leap_month = " adhika"
-        else: leap_month = ""
-        if self.leap_day: leap_day = " adhika"
-        else: leap_day = ""
+        if self.leap_month:
+            leap_month = " adhika"
+        else:
+            leap_month = ""
+        if self.leap_day:
+            leap_day = " adhika"
+        else:
+            leap_day = ""
         return "%s, %d%s %s%s %d%s" % (self.weekdays[self.weekday], self.day, leap_day,
                                        self.monthnames[self.month], leap_month,
                                        self.year, self.showtimeofday())
+
     def year_begin(self):
         raise NotImplemented
+
     def year_end(self):
         raise NotImplemented
 
@@ -1174,7 +1324,7 @@ class HinduLunarDate(CalDate):
 class HinduSolarDate(CalDate):
     calendar = "HinduSolar"
     prefix = "hindu_solar"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.standard_year, None, None)),
         ("month", (pcc.standard_month, 1, 12)),
         ("day", (pcc.standard_day, 1, 32))])
@@ -1184,12 +1334,15 @@ class HinduSolarDate(CalDate):
                   u"Bhādrapada", u"Āśvina", u"Kārtika", u"Mārgaśīrṣa", u"Pauṣa",
                   u"Māgha", u"Phālguna")
     daystart = "sunrise"
+
     def __str__(self):
         return "%s, %d %s %d%s" % (self.weekdays[self.weekday], self.day,
                                    self.monthnames[self.month], self.year,
                                    self.showtimeofday())
+
     def year_begin(self):
         return HinduSolarDate(self.year, 1, 1)
+
     def year_end(self):
         return HinduSolarDate(self.year + 1, 1, 1) - 1
 
@@ -1199,7 +1352,7 @@ class HinduSolarDate(CalDate):
 class TibetanDate(CalDate):
     calendar = "Tibetan"
     prefix = "tibetan"
-    dateparts = odict([
+    dateparts = ODict([
         ("year", (pcc.tibetan_year, None, None)),
         ("month", (pcc.tibetan_month, 1, 12)),
         ("leap_month", (pcc.tibetan_leap_month, 0, 1)),
@@ -1212,18 +1365,26 @@ class TibetanDate(CalDate):
     elements = ("shing", "me", "sa", "lcags", "chu")
     totems = ("bya ba", "glang", "stag", "yos", "'brug", "sbrul",
               "rta", "lug", "spre'u", "khyi", "phag")
+
     def __str__(self):
-        if self.leap_month: leap_month = "(leap) "
-        else: leap_month = ""
-        if self.leap_day: leap_day = "(leap) "
-        else: leap_day = ""
+        if self.leap_month:
+            leap_month = "(leap) "
+        else:
+            leap_month = ""
+        if self.leap_day:
+            leap_day = "(leap) "
+        else:
+            leap_day = ""
         return "%s, %s%d %s%s %d%s" % (self.weekdays[self.weekday], leap_day, self.day,
                                        leap_month, self.monthnames[self.month],
                                        self.year, self.showtimeofday())
+
     def year_begin(self):
         return TibetanDate(pcc.losar(self.year))
+
     def year_end(self):
         return TibetanDate(pcc.losar(self.year + 1)) - 1
+
 
 calendars = (JDDate, MJDDate, GregorianDate, JulianDate, RomanDate, EgyptianDate,
              ArmenianDate, ISODate, CopticDate, EthiopicDate, IslamicDate,
@@ -1232,7 +1393,8 @@ calendars = (JDDate, MJDDate, GregorianDate, JulianDate, RomanDate, EgyptianDate
              TibetanDate)
 
 defaultcalendar = "Gregorian"
-        
+
+
 ######################################################################
 
 def sunrise(date, location=None):
@@ -1241,7 +1403,8 @@ def sunrise(date, location=None):
     This function returns the approximate sunrise time for a given location (by
     default, the current location).  The output has the same format of the input
     date, that is a calendar datetime, or a fixed number."""
-    if location is None: location = geolocation.location
+    if location is None:
+        location = geolocation.location
     if isinstance(date, CalDate):
         return date.__class__(pcc.sunrise(round(date.fixed), location) - 0.5)
     else:
@@ -1254,11 +1417,13 @@ def sunset(date, location=None):
     This function returns the approximate sunset time for a given location (by
     default, the current location).  The output has the same format of the input
     date, that is a calendar datetime, or a fixed number."""
-    if location is None: location = geolocation.location
+    if location is None:
+        location = geolocation.location
     if isinstance(date, CalDate):
         return date.__class__(pcc.sunset(round(date.fixed), location) - 0.5)
     else:
         return pcc.sunset(round(date), location) - 0.5
+
 
 def moonrise(date, location=None):
     """Computes the approximate moonrise time.
@@ -1266,11 +1431,13 @@ def moonrise(date, location=None):
     This function returns the approximate sunrise time for a given location (by
     default, the current location).  The output has the same format of the input
     date, that is a calendar datetime, or a fixed number."""
-    if location is None: location = geolocation.location
+    if location is None:
+        location = geolocation.location
     if isinstance(date, CalDate):
         return date.__class__(pcc.moonrise(round(date.fixed), location) - 0.5)
     else:
         return pcc.moonrise(round(date), location) - 0.5
+
 
 def loadcalendars(ip):
     for cal in calendars:
@@ -1278,5 +1445,3 @@ def loadcalendars(ip):
     ip.user_ns["sunrise"] = sunrise
     ip.user_ns["sunset"] = sunset
     ip.user_ns["moonrise"] = moonrise
-    
-    

@@ -24,27 +24,37 @@ Pluto    39.48211675      0.24882730     17.14001206      238.92903833    224.06
          -0.00031596      0.00005170      0.00004818      145.20780515     -0.04062942     -0.01183482
 """
 
+
 def genitive(name):
-    if name[-1] == "s": return name + "'"
+    if name[-1] == "s":
+        return name + "'"
     return name + "'s"
+
 
 def JPLconst(value, error, unit, name="", absolute=False):
     try:
         dummy = float(value) + float(error if error.strip() != "" else "0")
         engine_func = getattr(internals["engine_module"], internals["engine"])
-        if unit == "days" or unit == "d": unit = "day"
-        if error: value = value + " +/- " + error
-        if unit: v = Value(engine_func(value), unit, original=True,
-                           absolute=absolute) 
-        else: v = Value(engine_func(value), absolute=absolute)
+        if unit == "days" or unit == "d":
+            unit = "day"
+        if error:
+            value = value + " +/- " + error
+        if unit:
+            v = Value(engine_func(value), unit, original=True,
+                      absolute=absolute)
+        else:
+            v = Value(engine_func(value), absolute=absolute)
         doc = "%s\n\nConstant defined in the SSD JPL database as: " % name
-        if error: doc += "(%s +/- %s) [%s]" % (value, error, unit)
-        else: doc += "%s [%s]" % (value, unit)
+        if error:
+            doc += "(%s +/- %s) [%s]" % (value, error, unit)
+        else:
+            doc += "%s [%s]" % (value, unit)
         v.__doc__ = doc
     except ValueError as s:
         v = Value(float("NaN"))
         v.__doc__ = "Error parsing JPL data: " + str(s)
     return v
+
 
 def load_planets():
     url = "http://ssd.jpl.nasa.gov/?planet_phys_par"
@@ -62,10 +72,11 @@ def load_planets():
     texts = [td.text_content() for td in table.xpath('*/td')]
     labels = texts[0:11]
     for l, label in enumerate(labels):
-        if label in newlabels: labels[l] = newlabels[label]
-    units = texts[11:22]
+        if label in newlabels:
+            labels[l] = newlabels[label]
+    my_units = texts[11:22]
     data = []
-    for n in range(22,len(texts),11):
+    for n in range(22, len(texts), 11):
         data.append(texts[n:n+11])
     planets = {}
     for line in data:
@@ -76,31 +87,33 @@ def load_planets():
                 continue
             v, e = [s.strip(u" \n\t\xA0")
                     for s in value.partition("[")[0].partition(u"\xB1")[::2]]
-            u = units[n].strip(u" \n\t\xA0()")
+            u = my_units[n].strip(u" \n\t\xA0()")
             if labels[n] == "Mass" and u == "x 1024 kg":
                 v = v + "e24"
                 e = e + "e24"
                 u = "kg"
-            elif u == "mag": u = ""            
+            elif u == "mag":
+                u = ""
             planets[name][labels[n]] = (v, e, u)
     # Now add the planetary data
     T = 0.0
     labels = ["Semi-major axis", "Eccentricity", "Inclination", "Mean Longitude",
               "Longitude of Perihelius", "Longitude of Ascending Node"]
-    units = ["AU", "", "deg", "deg", "deg", "deg"]
+    my_units = ["AU", "", "deg", "deg", "deg", "deg"]
     for line in planet_table.split("\n")[1:-1]:
-        if line[0:7] == "EM Bary": line = "Earth  " + line[7:]
+        if line[0:7] == "EM Bary":
+            line = "Earth  " + line[7:]
         if line[0] != " ":
             values = line.split()
             name = values[0]
             for l, value in enumerate(values[1:]):
-                planets[name][labels[l]] = (value, "", units[l])
+                planets[name][labels[l]] = (value, "", my_units[l])
         else:
             values = line.split()
             for l, value in enumerate(values):
                 w = dict.__getitem__(planets[name], labels[l])
                 planets[name][labels[l]] = (str(float(w[0]) + float(value)*T),
-                                            "", units[l])
+                                            "", my_units[l])
     return planets
     
     
@@ -124,11 +137,13 @@ def load_moons():
         lines = table.xpath('tr')
         labels = [s.text_content().partition("\n")[0].partition("(")[0].strip(" \t\n")
                   for s in lines[0].xpath("td|th")]
-        units = [s.text_content().partition("(")[2].strip(" \t\n)")
-                 for s in lines[0].xpath("td|th")]
+        my_units = [s.text_content().partition("(")[2].strip(" \t\n)")
+                    for s in lines[0].xpath("td|th")]
         for l, label in enumerate(labels):
-            if label in newlabels: labels[l] = newlabels[label]
-            if labels[l] == "GM": units[l] = "km3/s2"
+            if label in newlabels:
+                labels[l] = newlabels[label]
+            if labels[l] == "GM":
+                my_units[l] = "km3/s2"
         moons[planet] = {}
         for line in lines[1:]:
             for n, value in enumerate(line.xpath(".//td|th")):
@@ -136,13 +151,16 @@ def load_moons():
                     name = value.text_content().strip(u" \n\t\xA0").replace(" ", "")
                     moons[planet][name] = {}
                     continue
-                elif n not in (1,3,5,6,8): continue
+                elif n not in (1, 3, 5, 6, 8):
+                    continue
                 v, e = [s.strip(u" \n\t\xA0")
                         for s in value.text_content().partition("[")[0].partition(u"\xB1")[::2]]
                 l = n//2+1
-                if labels[l] == "Magnitude": v = v.strip("RVr")
-                if v == "?": v = "nan"
-                moons[planet][name][labels[l]] = (v, e, units[l])
+                if labels[l] == "Magnitude":
+                    v = v.strip("RVr")
+                if v == "?":
+                    v = "nan"
+                moons[planet][name][labels[l]] = (v, e, my_units[l])
     # Now go for the satellite elements
     url = "http://ssd.jpl.nasa.gov/?sat_elem"
     page = requests.get(url)
@@ -155,16 +173,18 @@ def load_moons():
             lines = table.xpath('tr')
             labels = [td.text_content() for td in lines[0].xpath('td|th')]
             for l, label in enumerate(labels):
-                if label in newlabels: labels[l] = newlabels[label]
-            units = [td.text_content() for td in lines[1].xpath('td|th')]
+                if label in newlabels:
+                    labels[l] = newlabels[label]
+            my_units = [td.text_content() for td in lines[1].xpath('td|th')]
             for line in lines[2:]:
                 for n, value in enumerate(line.xpath(".//td|th")):
                     if n == 0:
                         name = value.text_content().strip(u" \n\t\xA0").replace(" ", "")
                         continue
-                    elif labels[n] == "Ref.": continue
+                    elif labels[n] == "Ref.":
+                        continue
                     moons[planet][name][labels[n]] = \
-                        (value.text_content(), "", units[n].strip(" ()"))
+                        (value.text_content(), "", my_units[n].strip(" ()"))
     return moons
 
 
@@ -181,7 +201,7 @@ def load_minor(minor):
     classification = tree.xpath('//table[@bgcolor="#EEEEEE"]//font[@size="-1"]')[1].text_content()
     spk_id = tree.xpath('//table[@bgcolor="#EEEEEE"]//font[@size="-1"]')[3].text_content()
     table = tree.xpath('//table[@border="1"]')[0]
-    result = {}
+    result = dict()
     result["name"] = name
     result["classification"] = classification
     result["SPK-ID"] = spk_id
@@ -191,13 +211,17 @@ def load_minor(minor):
         value = cols[2].text_content().strip(u" \n\t\xA0")
         unit = cols[3].text_content().strip(u" \n\t\xA0")
         sigma = cols[4].text_content().strip(u" \n\t\xA0")
-        if value == "Value": continue
-        if unit == "mag": unit = ""
-        if sigma == "n/a": sigma = 0
+        if value == "Value":
+            continue
+        if unit == "mag":
+            unit = ""
+        if sigma == "n/a":
+            sigma = 0
         try:
             subname = genitive(minor) + " " + name
             result[name] = JPLconst(value, sigma, unit, name=subname)
-            if result[name] != result[name]: result[name] = value
+            if result[name] != result[name]:
+                result[name] = value
         except (ValueError, TypeError):
             result[name] = value
     title = tree.xpath('//tr[@bgcolor="#999999"]')[0]
@@ -223,9 +247,12 @@ def load_minor(minor):
         else:
             unit = cols[3].text_content()
         unit = unit.strip(u" \n\t\xA0")
-        if unit == "deg/d": unit = "deg/day"
-        elif unit == "d": unit = "day"
-        elif unit == "mag": unit = ""
+        if unit == "deg/d":
+            unit = "deg/day"
+        elif unit == "d":
+            unit = "day"
+        elif unit == "mag":
+            unit = ""
         elif unit == "JED":
             unit = "day"
             absolute = True
@@ -234,7 +261,8 @@ def load_minor(minor):
         else:
             sigma = cols[2].text_content()
         sigma = sigma.strip(u" \n\t\xA0")
-        if value == "Value": continue
+        if value == "Value":
+            continue
         try:
             subname = genitive(minor) + " " + name
             result[name] = JPLconst(value, sigma, unit, name=subname,
@@ -258,7 +286,8 @@ def loadJPLconstants(force=False):
     except:
         pass
     finally:
-        if f: f.close()
+        if f:
+            f.close()
     if force or len(planets) < 8 or len(moons) < 6:
         planets = load_planets()
         moons = load_moons()
@@ -266,13 +295,13 @@ def loadJPLconstants(force=False):
         pickle.dump(planets, f, protocol=2)
         pickle.dump(moons, f, protocol=2)
         f.close()
-    for k1,v1 in planets.items():
-        for k2,v2 in v1.items():
+    for k1, v1 in planets.items():
+        for k2, v2 in v1.items():
             name = genitive(k1) + " " + k2
             v1[k2] = JPLconst(v2[0], v2[1], v2[2], name=name)
-    for k1,v1 in moons.items():
-        for k2,v2 in v1.items():
-            for k3,v3 in v2.items():
+    for k1, v1 in moons.items():
+        for k2, v2 in v1.items():
+            for k3, v3 in v2.items():
                 name = k3 + " of " + k2 + ", moon of " + k1
                 v2[k3] = JPLconst(v3[0], v3[1], v3[2], name=name)
     return planets, moons

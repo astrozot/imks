@@ -19,7 +19,7 @@ from ._version import __version__, __date__
 
 try:
     from objproxies import CallbackProxy, LazyProxy
-except:
+except ImportError:
     from peak.util.proxies import CallbackProxy, LazyProxy
 
 
@@ -27,24 +27,24 @@ def change_engine(namespace, newengine):
     from importlib import import_module
     global internals
     try:
-        module = import_module("imks.units_" + newengine)
+        my_module = import_module("imks.units_" + newengine)
     except:
         print("Cannot load engine %s" % newengine)
         raise ImportError
     if internals["engine_module"]:
         internals["engine_module"].unload(namespace)
     try:
-        module.load(namespace)
+        my_module.load(namespace)
         internals["engine"] = "ufloat"
     except:
         print("Cannot load engine %s" % newengine)
         internals["engine_module"].load(namespace)
         raise ImportError
-    internals["engine_module"] = module    
+    internals["engine_module"] = my_module
 
     
 @magics_class
-class imks_magic(Magics):
+class ImksMagic(Magics):
     re_doc = re.compile(r'([^#]+)\s*#\s*"(.*)(?<!\\)"\s*')
 
     def split_command_doc(self, line):
@@ -53,8 +53,9 @@ class imks_magic(Magics):
             doc = m.group(2).strip(' ')
             doc = doc.encode('latin-1').decode('unicode_escape')
             line = m.group(1)
-        else: doc = ""
-        return (line, doc)
+        else:
+            doc = ""
+        return line, doc
 
     @classmethod
     def imks_doc(cls):
@@ -91,14 +92,14 @@ class imks_magic(Magics):
         An additional <on|off> argument enable or disable imks altogether [%s].
         """
         global config
-        imks_magic.__dict__["imks"].__doc__ = imks_magic.imks_doc.__doc__ % \
+        ImksMagic.__dict__["imks"].__doc__ = ImksMagic.imks_doc.__doc__ % \
             ("on" if config["auto_brackets"] else "off",
              "on" if config["standard_exponent"] else "off",
              "on" if config["unit_tolerant"] else "off",
              "on" if config["sort_units"] else "off",
              "on" if config["prefix_only"] else "off",
-             "2" if config["complete_currencies"] == True else
-             "0" if config["complete_currencies"] == False else "1",
+             "2" if config["complete_currencies"] is True else
+             "0" if config["complete_currencies"] is False else "1",
              config["engine"], config["show_errors"],
              config.get("default_calendar", "none"),
              config["digits"], config["min_fixed"], config["max_fixed"],
@@ -106,9 +107,9 @@ class imks_magic(Magics):
 
     @line_magic
     def imks(self, args):
-        def imks_print(s):
+        def imks_print(*p_args, **p_kwargs):
             if units.units or len(units.prefixes) > 1:
-                print(s)
+                print(*p_args, **p_kwargs)
                 
         global config
         opts, name = self.parse_options(args, 'ha:e:u:s:k:t:$:c:m:M:p:o:d:')
@@ -120,12 +121,12 @@ class imks_magic(Magics):
             imks_print("iMKS disabled")
         elif len(args) == 0:
             config["enabled"] = not config["enabled"]
-            imks_print("iMKS %s" % ("enabled" if config["enabled"] \
+            imks_print("iMKS %s" % ("enabled" if config["enabled"]
                                     else "disabled"))
         if "h" in opts:
             from . import doc
             page(doc.__doc__)
-            imks_magic.imks_doc()
+            ImksMagic.imks_doc()
             if not units.units and len(units.prefixes) <= 1:
                 config["banner"] = False
                 self.shell.confirm_exit = False
@@ -225,13 +226,14 @@ class imks_magic(Magics):
             elif "M" in opts:
                 config["max_fixed"] = units_mpmath.max_fixed = \
                     eval(opts["M"], self.shell.user_ns)
-            imks_print("Fixed range:", units_mpmath.min_fixed, ":", \
-                        units_mpmath.max_fixed)
+            imks_print("Fixed range:", units_mpmath.min_fixed, ":",
+                       units_mpmath.max_fixed)
         if "d" in opts:
             calnames = [c.calendar for c in calendars.calendars]
             if opts["d"] in calnames:
                 config["default_calendar"] = opts["d"]
-            else: print("Unkown calendar %s" % opts["d"])
+            else:
+                print("Unkown calendar %s" % opts["d"])
             imks_print("Default calendar set to %s" % opts["d"])
         self.imks_doc()
 
@@ -303,10 +305,11 @@ class imks_magic(Magics):
         if len(exts) == 0:
             from textwrap import wrap
             print("\n  ".join(wrap("Extensions loaded: %s." %
-                            (u", ".join(sorted(internals["extensions"]))))))
+                  (u", ".join(sorted(internals["extensions"]))))))
             return
         for ext in exts:
-            if ext == "-s": silent = True
+            if ext == "-s":
+                silent = True
             else:
                 internals["extensions"].add(ext)
                 if ext == "calendars":
@@ -327,12 +330,12 @@ class imks_magic(Magics):
                     planets, moons = jpl.loadJPLconstants()
                     self.shell.user_ns["planets"] = planets
                     self.shell.user_ns["moons"] = moons
-                    self.shell.user_ns["minorplanet"] = \
-                      lambda name: jpl.load_minor(name)
+                    self.shell.user_ns["minorplanet"] = lambda name: jpl.load_minor(name)
                 elif ext == "currencies":
                     if "openexchangerates_id" in ip.user_ns:
                         app_id = self.shell.user_ns["openexchangerates_id"]
-                    else: app_id = ""
+                    else:
+                        app_id = ""
                     currencies.currencies(app_id)
                 elif ext == "wiki" or ext == "wikipedia":
                     from . import wiki
@@ -356,7 +359,8 @@ class imks_magic(Magics):
                 diff.sort()
                 print("\n  ".join(wrap("New units: %s." % (u", ".join(diff)))))
 
-    def checkvalidname(self, arg):
+    @staticmethod
+    def checkvalidname(arg):
         if re.search(r"[0-9]", arg):
             raise NameError("Invalid name \"%s\"" % arg)
                 
@@ -582,8 +586,10 @@ class imks_magic(Magics):
         command, doc = self.split_command_doc(arg)
         command = command.replace('"', '\\"').replace("'", "\\'")
         opts, command = self.parse_options(command, "1")
-        if "1" in opts: proxy = LazyProxy
-        else: proxy = CallbackProxy
+        if "1" in opts:
+            proxy = LazyProxy
+        else:
+            proxy = CallbackProxy
         tmp = command.split("=")
         names, source = tmp[:-1], tmp[-1]
         value = self.shell.ev(transform("lambda : " + source)) & \
@@ -605,8 +611,10 @@ class imks_magic(Magics):
                used"""
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
-        if "1" in opts: proxy = LazyProxy
-        else: proxy = CallbackProxy
+        if "1" in opts:
+            proxy = LazyProxy
+        else:
+            proxy = CallbackProxy
         tmp = command.split("=")
         names, source = tmp[:-1], tmp[-1]
         value = self.shell.ev(transform("lambda : " + source))
@@ -629,8 +637,10 @@ class imks_magic(Magics):
                used"""
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
-        if "1" in opts: proxy = LazyProxy
-        else: proxy = CallbackProxy
+        if "1" in opts:
+            proxy = LazyProxy
+        else:
+            proxy = CallbackProxy
         tmp = command.split("=")
         names, source = tmp[:-1], tmp[-1]
         value = self.shell.ev(transform("lambda : " + source))
@@ -650,12 +660,14 @@ class imks_magic(Magics):
            transformer is a function used to perform the input transformation."""
         command, doc = self.split_command_doc(arg)
         i = command.find("=")
-        if i < 0: raise SyntaxError("equal sign not found")
+        if i < 0:
+            raise SyntaxError("equal sign not found")
         name, value = command[0:i], command[i+1:]
         quotes = re.split(r'(?<!\\)\"', value)
         regex = quotes[1]
         trans = quotes[2]
-        if trans[0] != ':': raise SyntaxError("column sign not found")
+        if trans[0] != ':':
+            raise SyntaxError("column sign not found")
         cregex = re.compile(regex)
         self.checkvalidname(name)
         config["intrans"][name] = (cregex, trans[1:].strip()) & \
@@ -682,7 +694,8 @@ class imks_magic(Magics):
            %deltformat) and transformer is a function used to generate the output."""
         command, doc = self.split_command_doc(arg)
         i = command.find("=")
-        if i < 0: raise SyntaxError("equal sign not found")
+        if i < 0:
+            raise SyntaxError("equal sign not found")
         name, value = command[0:i], command[i+1:]
         self.checkvalidname(name)
         units.formats[name] = eval(value, self.shell.user_ns) & units.Doc(doc, value)
@@ -723,13 +736,13 @@ class imks_magic(Magics):
         u0 = dict([(k, w) for k, w in units.units.items()
                    if k in units.baseunits])
         u1 = dict([(k, w) for k, w in units.units.items()
-                   if k not in units.baseunits and k not in currencies.basecurrency \
+                   if k not in units.baseunits and k not in currencies.basecurrency
                    and k not in currencies.currencydict])
         c0 = dict([(k, w) for k, w in units.units.items()
                    if k in currencies.basecurrency])
         c1 = dict([(k, w) for k, w in units.units.items()
-                    if k not in currencies.basecurrency and \
-                       k in currencies.currencydict])
+                   if k not in currencies.basecurrency
+                   and k in currencies.currencydict])
         namespaces = []
         if 's' in opts:
             namespaces.append(("Unit systems", units.systems))
@@ -760,10 +773,11 @@ class imks_magic(Magics):
             name = name.upper()
             shown = False
             for n, d in namespaces:
-                f = [k for k,v in d.items() \
+                f = [k for k, v in d.items()
                      if str(getattr(v, "__doc__", "")).upper().find(name) >= 0]
                 if f:
-                    if not shown: print(name)
+                    if not shown:
+                        print(name)
                     print("%s: %s" % (n, ", ".join(f)))
                     shown = True
             if not shown:
@@ -773,7 +787,8 @@ class imks_magic(Magics):
             res = units.isunit(name)
             if res:
                 print("%s parsed as prefix(%s) + unit(%s)" % (name, res[0], res[1]))
-            else: print("%s is not a valid unit with prefix")
+            else:
+                print("%s is not a valid unit with prefix")
             return
         if '*' in name:
             psearch = self.shell.inspector.psearch
@@ -784,18 +799,21 @@ class imks_magic(Magics):
                 self.shell.showtraceback()
 
         else:
-            goodones = [n for n,ns in enumerate(namespaces)
+            goodones = [n for n, ns in enumerate(namespaces)
                         if name in ns[1]]
             if goodones:
-                if len(goodones) > 1: spaces = "  "
-                else: spaces = ""
+                if len(goodones) > 1:
+                    spaces = "  "
+                else:
+                    spaces = ""
                 res = []
                 for goodone in goodones:
                     namespace = namespaces[goodone]
                     obj = namespace[1][name]
                     if len(goodones) > 1:
                         fields = [(namespace[0].upper(), "")]
-                    else: fields = []
+                    else:
+                        fields = []
                     fields.extend([(spaces + "Type", obj.__class__.__name__),
                                    (spaces + "String Form", str(obj)),
                                    (spaces + "Namespace", namespace[0])])
@@ -839,7 +857,6 @@ class imks_magic(Magics):
         %compatible g
         %compatible -l 3 -v -V "c, G, hbar" [s]
         """
-        import sys
         opts, us = self.parse_options(args, "uU:vV:l:")
         level = int(opts.get("l", 1))
         if us[0] == '[' and us[-1] == ']':
@@ -863,24 +880,28 @@ class imks_magic(Magics):
                         where[str(tmp[1]).strip(" []")] = tmp[0]
             else:
                 where = units.units
-            for u in r.findCompatible(where, level=level):
+            for u in r.find_compatible(where, level=level):
                 found.append(str(u))
-            if not found: print("No compatible unit")
-            else: print("Compatible units: %s" % ", ".join(found))
+            if not found:
+                print("No compatible unit")
+            else:
+                print("Compatible units: %s" % ", ".join(found))
         if "u" not in opts:
             found = []
             if "V" in opts:
                 where = ODict([(k.strip(), self.shell.user_ns[k.strip()])
-                                for k in opts["V"].split(",")])
+                               for k in opts["V"].split(",")])
             else:
                 where = self.shell.user_ns
-            where = ODict([(k,v) for k,v in where.items()
+            where = ODict([(k, v) for k, v in where.items()
                            if isinstance(v, units.Value)])
-            for u in r.findCompatible(where, level=level):
+            for u in r.find_compatible(where, level=level):
                 uu = str(u).strip("[] ")
                 found.append(uu)
-            if not found: print("No compatible value")
-            else: print("Compatible values: %s" % ", ".join(found))
+            if not found:
+                print("No compatible value")
+            else:
+                print("Compatible values: %s" % ", ".join(found))
 
     @line_magic
     def pickle(self, args):
@@ -920,7 +941,6 @@ class imks_magic(Magics):
         change_engine(ip.user_ns, config["engine"])
         print("Done.")
 
-        
     @line_magic
     def unpickle(self, args):
         """Unpickle variables from a file.
@@ -943,7 +963,7 @@ class imks_magic(Magics):
         # Pickle all variables we can
         fails = []
         ns = self.shell.user_ns
-        for k,v in d.items():
+        for k, v in d.items():
             try:
                 w = pickle.loads(v)
                 ns[k] = w
@@ -955,8 +975,6 @@ class imks_magic(Magics):
         units.save_variables(self.shell)
         print("Done.")
 
-        
-        
     @line_magic
     def reset(self, args):
         """Reset the iMKS session.
@@ -985,6 +1003,5 @@ class imks_magic(Magics):
         # reprint the welcome message
         if config["banner"]:
             print("Welcome to iMKS %s - © Marco Lombardi %s" %
-                      (__version__, __date__))
+                  (__version__, __date__))
             print("Type %imks -h or ! for help.")
-

@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import, division, print_function
-from traitlets import List, Int, Any, Unicode, CBool, Bool, Instance
-from IPython.core.inputtransformer import (CoroutineInputTransformer, 
-                                           StatelessInputTransformer,
-                                           TokenInputTransformer,
-                                           _strip_prompts)
-from IPython.core import inputsplitter as isp
-from IPython.core import inputtransformer as ipt
+from IPython.core.inputtransformer import (StatelessInputTransformer,
+                                           TokenInputTransformer)
 import re
 from unidecode import unidecode
 from ._version import __version__, __date__
 from . import units, currencies, calendars
-from .transformers import command_transformer, unit_transformer, transform
+from .transformers import command_transformer, unit_transformer
 from .config import *
 
 
@@ -22,6 +17,7 @@ from .config import *
 import readline
 from itertools import chain
 from IPython.core.error import TryNext
+
 
 def _retrieve_obj(name, context):
     # we don't want to call any functions, but I couldn't find a robust regex
@@ -40,10 +36,12 @@ def _retrieve_obj(name, context):
         obj = eval(name, context.user_ns)
     return obj
 
-class Imks_completer(object):
-    def is_ascii(self, text):
+
+class ImksCompleter(object):
+    @staticmethod
+    def is_ascii(text):
         try:
-            s = str(text)
+            str(text)
         except UnicodeEncodeError:
             return False
         return True
@@ -54,8 +52,8 @@ class Imks_completer(object):
 
     def get_units(self, text):
         us = units.units.keys()
-        if config["complete_currencies"] == False or \
-          (config["complete_currencies"] != True and text.lower() == text):
+        if config["complete_currencies"] is False or \
+                (config["complete_currencies"] is not True and text.lower() == text):
             us = set(us) - set(currencies.currencydict.keys())
         return filter(lambda x: x.startswith(text) and self.is_ascii(x),
                       us)
@@ -66,8 +64,8 @@ class Imks_completer(object):
 
     def get_prefunits(self, text):
         us = units.units.keys()
-        if config["complete_currencies"] == False or \
-          (config["complete_currencies"] != True and text.lower() == text):
+        if config["complete_currencies"] is False or \
+          (config["complete_currencies"] is not True and text.lower() == text):
             us = set(us) - set(currencies.currencydict.keys())
         ps = list(filter(lambda x: (x.startswith(text) or text.startswith(x)) and
                          self.is_ascii(x), units.prefixes.keys()))
@@ -80,7 +78,8 @@ class Imks_completer(object):
                    [p + u for u in us for p in ps if len(p) <= l])
         return r
 
-    def get_quotes(self, text, cs):
+    @staticmethod
+    def get_quotes(text, cs):
         ds = [unidecode(c) for c in cs]
         if text == "" or text[0] == '"':
             r = ['"' + d + '"' for d in ds]
@@ -88,7 +87,8 @@ class Imks_completer(object):
             r = ["'" + d + "'" for d in ds]
         rx = "[- \t\n@()\[\]+-/*^|&=<>,]"
         m = len(re.findall(rx, text))
-        if m == 0: r = [c for c in r if c.startswith(text)]
+        if m == 0:
+            r = [c for c in r if c.startswith(text)]
         else:
             r = [re.split(rx, c, maxsplit=m)[-1] for c in r
                  if c.startswith(text)]
@@ -100,50 +100,65 @@ class Imks_completer(object):
         else:
             return r
 
-imks_completer = Imks_completer()
 
-re_space_match = re.compile(r"[][ \t\n@()[+-/*^|&=<>,]+")
+imks_completer = ImksCompleter()
 
-re_value_match = re.compile(r"(?:.*\=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?:\[)")
+re_space_match = re.compile(r"[][ \t\n@()+-/*^|&=<>,]+")
+
+re_value_match = re.compile(r"(?:.*=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?:\[)")
+
+
 def imks_value_completer(self, event):
     # event has command, line, symbol, text_until_cursor
     # self._ofind(base) has obj, parent, isalias, namespace, found, ismagic
     m = re_value_match.split(event.text_until_cursor)
-    n = m[-2]                           # number
     u = m[-1]                           # full unit
-    if u.find("]") >= 0: return []      # unit specification closed already
+    if u.find("]") >= 0:
+        return []                       # unit specification closed already
     v = re_space_match.split(u)[-1]     # last unit (or generally last word of u)
     readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
     return imks_completer.get_prefunits(v)
 
-re_svalue_match = re.compile(r"(?:.*\=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?:\ )")
+
+re_svalue_match = re.compile(r"(?:.*=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?: )")
+
+
 def imks_svalue_completer(self, event):
     m = re_svalue_match.split(event.text_until_cursor)
-    n = m[-2]                           # number
     u = m[-1]                           # full unit
-    if u.find("[") >= 0: raise TryNext  # unit specification with [...]
+    if u.find("[") >= 0:
+        raise TryNext                   # unit specification with [...]
     v = re_space_match.split(u)[-1]     # last unit (or generally last word of u)
     readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
     return imks_completer.get_prefunits(v)
-    
+
+
 re_unit_match = re.compile(r"\[([^]]*)\]\s*,?\s*")
+
+
 def imks_at_completer(self, event):
     # event has command, line, symbol, text_until_cursor
     # self._ofind(base) has obj, parent, isalias, namespace, found, ismagic
     parts = event.text_until_cursor.split("@")
-    if len(parts) != 2: raise TryNext
+    if len(parts) != 2:
+        raise TryNext
     us = parts[1]                       # unit or system part
     vs = re_unit_match.split(us)[-1]    # last unit or system
     v = re_space_match.split(vs)[-1]
     readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
     return chain(imks_completer.get_systems(v), imks_completer.get_prefunits(v))
 
+
 re_item_match = re.compile(r".*(\b(?!\d)\w\w*(\[[^\]]+\])*)\[((?P<s>['\"])(?!.*(?P=s)).*)$")
+
+
 def imks_dict_completer(self, event):
     m = re_item_match.split(event.text_until_cursor)
     if len(m) < 3:
-        if event.text_until_cursor[-1] == "[": return ['"']
-        else: return []
+        if event.text_until_cursor[-1] == "[":
+            return ['"']
+        else:
+            return []
     base, item = m[1], m[3]
     try:
         obj = _retrieve_obj(base, self)
@@ -153,14 +168,14 @@ def imks_dict_completer(self, event):
     readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
     return imks_completer.get_quotes(item, items)
 
+
 def imks_load_imks_ext(self, event):
     return ["constants", "currencies", "calendars", "geolocation", "jpl",
             "wiki"]
 
+
 def imks_imks_completer(self, event):
     words = re.split(r"\s+", event.text_until_cursor)
-    lword = words[-1]
-    nwords = len(words)
     opts = "ha:e:u:s:k:t:c:m:M:p:o:d:"
     argopt = None
     for word in words[:-1]:
@@ -188,6 +203,7 @@ def imks_imks_completer(self, event):
     else:
         return ["on", "off"] + ["-" + o for o in opts if o != ":"]
 
+
 def imks_date_completer(self, event):
     text = event.text_until_cursor
     n = len(text) - 1
@@ -208,29 +224,40 @@ def imks_date_completer(self, event):
     name  = ""
     while n >= 0:
         c = text[n]
-        if c == ")": npar1 += 1
+        if c == ")":
+            npar1 += 1
         elif c == "(":
             npar1 -= 1
             if npar1 == -1 and npar2 == 0 and npar3 == 0 and \
                    quot1 == 0 and quot2 == 0:
                 m = re.match(r".*(\b(?!\d)\w\w*\b)$", text[0:n])
-                if m: name = m.group(1)
-                else: name = None
+                if m:
+                    name = m.group(1)
+                else:
+                    name = None
                 break
         elif c == "," and npar1 == 0 and npar2 == 0 and npar3 == 0 and \
-                 quot1 == 0 and quot2 == 0: nargs += 1
-        elif c == "]": npar2 += 1
-        elif c == "[": npar2 -= 1
-        elif c == "}": npar3 += 1
-        elif c == "{": npar3 -= 1
-        elif c == '"': quot1 = 1 - quot1
-        elif c == "'": quot2 = 1 - quot2
+                quot1 == 0 and quot2 == 0:
+            nargs += 1
+        elif c == "]":
+            npar2 += 1
+        elif c == "[":
+            npar2 -= 1
+        elif c == "}":
+            npar3 += 1
+        elif c == "{":
+            npar3 -= 1
+        elif c == '"':
+            quot1 = 1 - quot1
+        elif c == "'":
+            quot2 = 1 - quot2
         n -= 1
     try:
         obj = _retrieve_obj(name, self)
     except:
         return []
-    if not issubclass(obj, calendars.CalDate): return TryNext
+    if not issubclass(obj, calendars.CalDate):
+        return TryNext
     item = text[quote:]
     if nargs == 1:
         readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
@@ -244,11 +271,10 @@ def imks_date_completer(self, event):
         names.sort()
         readline.set_completer_delims(" \t\n@()[]+-/*^|&=<>,")
         return imks_completer.get_quotes(item, names)
-    return []
-    
+
 
 def load_ipython_extension(ip):
-    from .magics import imks_magic, change_engine
+    from .magics import ImksMagic, change_engine
     global config
 
     # make sure we have a ~/.imks directory
@@ -281,14 +307,14 @@ def load_ipython_extension(ip):
     # nice LaTeX formatter
     import mpmath
     latex_formatter = ip.display_formatter.formatters['text/latex']
-    latex_formatter.for_type(float, lambda x: \
+    latex_formatter.for_type(float, lambda x:
                              ("${%s}$" % str(x)).replace("e", r"} \times 10^{"))
-    latex_formatter.for_type(mpmath.mpf, lambda x: \
+    latex_formatter.for_type(mpmath.mpf, lambda x:
                              ("${%s}$" % str(x)).replace("e", r"} \times 10^{"))
     
     # magic
-    imks_magic.imks_doc()
-    ip.register_magics(imks_magic)
+    ImksMagic.imks_doc()
+    ip.register_magics(ImksMagic)
 
     # activate true float division
     exec(ip.compile("from __future__ import division", "<input>", "single"),
@@ -340,4 +366,3 @@ def load_ipython_extension(ip):
 
 # from IPython.core.debugger import Pdb
 # Pdb().set_trace()
-
