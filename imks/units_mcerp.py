@@ -68,7 +68,7 @@ def fraction(q, p):
 
 
 def mconvert(f):
-    """Decorator for generic one-argument functions"""
+    """Decorator for generic one-argument functions."""
     g = lambda x: f(x.check_pure(f.__name__)) \
         if isinstance(x, Value) else f(x)
     g.__doc__ = f.__doc__
@@ -138,7 +138,7 @@ def load(namespace):
 
 
 def unload(namespace):
-    """Unload all math defined functions"""
+    """Unload all math defined functions."""
     names = dir(mcerp) + dir(umath) + ["fraction", "ufloat", "pi", "e"]
     for name in names:
         if name[0] != '_':

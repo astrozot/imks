@@ -71,6 +71,8 @@ class ImksMagic(Magics):
                        units are sorted to show first positive units [%s]
           -k <on|off>  toggle the use of prefixes without units.  When enabled, one
                        can enter quantities such as 1[k] to indicate 1000 [%s]
+          -v <on|off>  toggle the verbose output of units.  When enabled, units are
+                       printed, e.g., as "meter per second squared" [%s]
           -$ <0|1|2>   do not complete currencies (0), complete them only if capital
                        letters are present (1), or complete them anyway (2) [%s]
           -c <name>    specify the engine for mathematical calculations: must be one
@@ -98,6 +100,7 @@ class ImksMagic(Magics):
              "on" if config["unit_tolerant"] else "off",
              "on" if config["sort_units"] else "off",
              "on" if config["prefix_only"] else "off",
+             "on" if config["unit_verbose"] else "off",
              "2" if config["complete_currencies"] is True else
              "0" if config["complete_currencies"] is False else "1",
              config["engine"], config["show_errors"],
@@ -112,7 +115,7 @@ class ImksMagic(Magics):
                 print(*p_args, **p_kwargs)
                 
         global config
-        opts, name = self.parse_options(args, 'ha:e:u:s:k:t:$:c:m:M:p:o:d:')
+        opts, name = self.parse_options(args, 'ha:e:u:s:k:t:$:c:m:M:p:o:d:v:')
         if name in ["on", "1", "yes"]:
             config["enabled"] = True
             imks_print("iMKS enabled")
@@ -140,7 +143,7 @@ class ImksMagic(Magics):
                 config["auto_brackets"] = False
                 imks_print("Auto brackets disabled")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "e" in opts:
             if opts["e"] in ["on", "1", "yes"]:
                 config["standard_exponent"] = True
@@ -149,7 +152,7 @@ class ImksMagic(Magics):
                 config["standard_exponent"] = False
                 imks_print("Standard exponent (^) disabled")
             else:
-                imks_print("Incorrect argument.  Use on/1 or off/0")
+                imks_print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "s" in opts:
             if opts["s"] in ["on", "1", "yes"]:
                 config["sort_units"] = units.sortunits = True
@@ -158,7 +161,7 @@ class ImksMagic(Magics):
                 config["sort_units"] = units.sortunits = False
                 imks_print("Compound units are not sorted")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "k" in opts:
             if opts["k"] in ["on", "1", "yes"]:
                 config["prefix_only"] = units.prefixonly = True
@@ -167,7 +170,7 @@ class ImksMagic(Magics):
                 config["prefix_only"] = units.prefixonly = False
                 imks_print("Prefix without unit not accepted")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "t" in opts:
             if opts["t"] in ["on", "1", "yes"]:
                 config["unit_tolerant"] = units.tolerant = True
@@ -176,7 +179,16 @@ class ImksMagic(Magics):
                 config["unit_tolerant"] = units.tolerant = False
                 imks_print("Zero-value tolerance disabled")
             else:
-                print("Incorrect argument.  Use on/1 or off/0")
+                print("Incorrect argument.  Use yes/on/1 or no/off/0")
+        if "v" in opts:
+            if opts["v"] in ["on", "1", "yes"]:
+                config["unit_verbose"] = units.verbose = True
+                imks_print("Verbose output of units enabled")
+            elif opts["v"] in ["off", "0", "no"]:
+                config["unit_verbose"] = units.verbose = False
+                imks_print("Verbose output of units disabled")
+            else:
+                print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "$" in opts:
             if opts["$"] in ["on", "2", "yes"]:
                 config["complete_currencies"] = True
@@ -188,7 +200,7 @@ class ImksMagic(Magics):
                 config["complete_currencies"] = "maybe"
                 imks_print("Currency completion partially enabled")
             else:
-                print("Incorrect argument.  Use on/2, maybe/1, or off/0")
+                print("Incorrect argument.  Use yes/on/2, maybe/perhaps/1, or no/off/0")
         if "c" in opts:
             if opts["c"] in ["math", "mpmath", "fpmath", "numpy",
                              "umath", "soerp", "mcerp"]:
@@ -243,7 +255,8 @@ class ImksMagic(Magics):
 
         The modules are searched first in the current directory, then in the ~/.imks
         directory, and finally in the /script directory under the package location. The
-        latter location contains the standard modules distributed with imks."""
+        latter location contains the standard modules distributed with imks.
+        """
         import os, os.path
         ip = self.shell
         modules = arg.split(",")
@@ -294,7 +307,8 @@ class ImksMagic(Magics):
           geolocation   define two functions, set/get_geolocation to handle
                         geographical locations
           jpl           load planetary data from the SSD JPL database
-          wiki          search through Wikipedia infoboxes"""
+          wiki          search through Wikipedia infoboxes
+        """
         import os, os.path
         global internals
         ip = self.shell
@@ -377,7 +391,8 @@ class ImksMagic(Magics):
         being a fundamental block used for all calculations, cannot be deleted.
 
         See also:
-          %newbasecurrency, %newunit, %newprefix"""
+          %newbasecurrency, %newunit, %newprefix
+        """
         command, doc = self.split_command_doc(arg)
         self.checkvalidname(command)
         units.newbaseunit(command.strip(), doc=doc)
@@ -396,7 +411,8 @@ class ImksMagic(Magics):
         base unit; as such, it cannot be deleted.
 
         See also:
-          %newbaseunit, %newunit, %newprefix"""
+          %newbaseunit, %newunit, %newprefix
+        """
         command, doc = self.split_command_doc(arg)
         self.checkvalidname(command)
         units.newbasecurrency(command.strip(), doc=doc)
@@ -417,7 +433,8 @@ class ImksMagic(Magics):
         the required accuracy).
 
         See also:
-          %delprefix, %newunit, %delunit."""
+          %delprefix, %newunit, %delunit.
+        """
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
@@ -432,7 +449,8 @@ class ImksMagic(Magics):
         """Delete a prefix previously defined using the %newprefix magic.
 
         Usage:
-          %delprefix name"""
+          %delprefix name
+        """
         units.delprefix(arg.strip())
         return
 
@@ -452,7 +470,8 @@ class ImksMagic(Magics):
         > %newunit Celsius=(273.15[K], 1[K])
         > %newunit K=(0[K], 1[K])
 
-        A unit can be deleted using the %delunit magic."""
+        A unit can be deleted using the %delunit magic.
+        """
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
@@ -467,7 +486,8 @@ class ImksMagic(Magics):
         """Delete a unit previously defined using the %newunit magic.
 
         Usage:
-          %delunit name"""
+          %delunit name
+        """
         units.delunit(arg.strip())
         return
 
@@ -510,7 +530,8 @@ class ImksMagic(Magics):
         and as such it is privileged over the combination [m s^-1] (which instead
         requires the use of two different units entered).
         
-        A unit system can be deleted using the %delsystem magic."""
+        A unit system can be deleted using the %delsystem magic.
+        """
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
@@ -525,7 +546,8 @@ class ImksMagic(Magics):
         """Delete a unit system previously defined using the %newsystem magic.
 
            Usage:
-             %delsystem name"""
+             %delsystem name
+        """
         units.delsystem(arg.strip())
         return
 
@@ -538,7 +560,8 @@ class ImksMagic(Magics):
 
         where system is a previously define unit system or a list of units
         separated by | as in %newsystem.  Do not use any argument to unset the
-        default unit system."""
+        default unit system.
+        """
         if len(arg) == 0:
             units.defaultsystem = None
         else:
@@ -555,7 +578,8 @@ class ImksMagic(Magics):
 
         The advantage of using let over a simple assignment is that the entire
         variable definition is retained and can be queried when inspecting the
-        variable."""
+        variable.
+        """
         command, doc = self.split_command_doc(arg)
         tmp = command.split("=")
         names, value = tmp[:-1], tmp[-1]
@@ -582,7 +606,8 @@ class ImksMagic(Magics):
 
         Options:
           -1   Evaluate the entire expression only once, the first time the prefix is
-               used"""
+               used
+        """
         command, doc = self.split_command_doc(arg)
         command = command.replace('"', '\\"').replace("'", "\\'")
         opts, command = self.parse_options(command, "1")
@@ -608,7 +633,8 @@ class ImksMagic(Magics):
 
         Options:
           -1   Evaluate the entire expression only once, the first time the prefix is
-               used"""
+               used
+        """
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
         if "1" in opts:
@@ -634,7 +660,8 @@ class ImksMagic(Magics):
 
         Options:
           -1   Evaluate the entire expression only once, the first time the unit is
-               used"""
+               used
+        """
         command, doc = self.split_command_doc(arg)
         opts, command = self.parse_options(command, "1")
         if "1" in opts:
@@ -657,7 +684,8 @@ class ImksMagic(Magics):
 
            where name is the name of the new input transformer (only used as a key for
            %deltransformer), regexp is a regular expression using the named groups, and
-           transformer is a function used to perform the input transformation."""
+           transformer is a function used to perform the input transformation.
+        """
         command, doc = self.split_command_doc(arg)
         i = command.find("=")
         if i < 0:
@@ -679,7 +707,8 @@ class ImksMagic(Magics):
         """Delete an input transformer previously defined using %newtransformer.
 
            Usage:
-             %deltransformer name"""
+             %deltransformer name
+        """
         del config["intrans"][arg.strip()]
         return
 
@@ -691,7 +720,8 @@ class ImksMagic(Magics):
              %newformat name=transformer
 
            where name is the name of the new output transformer (only used as a key for
-           %deltformat) and transformer is a function used to generate the output."""
+           %deltformat) and transformer is a function used to generate the output.
+        """
         command, doc = self.split_command_doc(arg)
         i = command.find("=")
         if i < 0:
@@ -706,7 +736,8 @@ class ImksMagic(Magics):
         """Delete a format previously defined using %newformat.
 
            Usage:
-             %delformat name"""
+             %delformat name
+        """
         del units.formats[arg.strip()]
         return
 
@@ -727,7 +758,8 @@ class ImksMagic(Magics):
           -t   Search among input transformers
           -f   Search among output formats
           -x   Extended search: include variables
-          -i   For wildcard searches, ignore the case"""
+          -i   For wildcard searches, ignore the case
+        """
         global config
         opts, name = self.parse_options(args, "ayupstfxci")
         if name == "":
@@ -938,7 +970,7 @@ class ImksMagic(Magics):
         pickle.dump(d, f, protocol=protocol)
         f.close()
         # Reload the engine
-        change_engine(ip.user_ns, config["engine"])
+        change_engine(self.shell.user_ns, config["engine"])
         print("Done.")
 
     @line_magic
@@ -979,7 +1011,8 @@ class ImksMagic(Magics):
     def reset(self, args):
         """Reset the iMKS session.
 
-        This does a full reset: the engine, however, is left unchanged."""
+        This does a full reset: the engine, however, is left unchanged.
+        """
         global config
         import gc
         # this code is from IPython

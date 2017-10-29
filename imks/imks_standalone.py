@@ -14,13 +14,9 @@ from .config import *
 ######################################################################
 # Completer
 
+
 def imks_standalone_completer(text, state):
-    values = ["Marco", "Laura", "Filippo", "Martina"]
-    values = list(filter(lambda x: x.startswith(text), values))
-    if state < len(values):
-        return values[state]
-    else:
-        return None
+    return None
 
 
 ######################################################################
@@ -46,7 +42,7 @@ def load_imks(shell=None):
     # magic
     ImksMagic.imks_doc()
     magic = ImksMagic(shell=shell)
-        
+
     # load symbols
     units.load_variables(magic.shell.locals)
 

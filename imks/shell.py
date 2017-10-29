@@ -21,7 +21,7 @@ class Shell(InteractiveConsole):
     def ev(self, expr):
         """Evaluate python expression expr in user namespace.
 
-        Returns the result of evaluation
+        Returns the result of evaluation.
         """
         return eval(expr, self.locals)
 
@@ -150,7 +150,7 @@ class Magics(object):
         self.shell.magics = self.magics
 
     def arg_err(self, func):
-        """Print docstring if incorrect arguments were passed"""
+        """Print docstring if incorrect arguments were passed."""
         print('Error in arguments:')
         print(inspect.getdoc(func))
 

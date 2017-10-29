@@ -313,7 +313,7 @@ def load(namespace):
 
 
 def unload(namespace):
-    """Unload all mpmath defined functions"""
+    """Unload all mpmath defined functions."""
     global old_mpf_str
     names = dir(mpmath) + ["ufloat"]
     x = mpmath.mpf(1)

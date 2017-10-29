@@ -1402,7 +1402,8 @@ def sunrise(date, location=None):
 
     This function returns the approximate sunrise time for a given location (by
     default, the current location).  The output has the same format of the input
-    date, that is a calendar datetime, or a fixed number."""
+    date, that is a calendar datetime, or a fixed number.
+    """
     if location is None:
         location = geolocation.location
     if isinstance(date, CalDate):
@@ -1416,7 +1417,8 @@ def sunset(date, location=None):
 
     This function returns the approximate sunset time for a given location (by
     default, the current location).  The output has the same format of the input
-    date, that is a calendar datetime, or a fixed number."""
+    date, that is a calendar datetime, or a fixed number.
+    """
     if location is None:
         location = geolocation.location
     if isinstance(date, CalDate):
@@ -1430,7 +1432,8 @@ def moonrise(date, location=None):
 
     This function returns the approximate sunrise time for a given location (by
     default, the current location).  The output has the same format of the input
-    date, that is a calendar datetime, or a fixed number."""
+    date, that is a calendar datetime, or a fixed number.
+    """
     if location is None:
         location = geolocation.location
     if isinstance(date, CalDate):

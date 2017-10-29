@@ -11,7 +11,7 @@ from .config import *
 
 
 class Constants(dict):
-    """A constant dictionary taken from http://physics.nist.gov/cuu/Constants"""
+    """A constant dictionary taken from http://physics.nist.gov/cuu/Constants."""
     def __getattr__(self, attr):
         try:
             return self[attr]

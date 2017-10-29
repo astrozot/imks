@@ -150,7 +150,7 @@ def load(namespace):
 
 
 def unload(namespace):
-    """Unload all math defined functions"""
+    """Unload all math defined functions."""
     names = dir(math) + ["fraction", "ufloat", "round"]
     for name in names:
         if name[0] != '_':

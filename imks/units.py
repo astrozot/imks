@@ -13,6 +13,15 @@ except NameError:
     basestring = str
 
 
+# TODO: try to remove inflect dependency
+# TODO: interpret numbers and ordinals spelled out
+try:
+    import inflect
+    inflect_engine = inflect.engine()
+except ImportError:
+    inflect_engine = None
+
+
 def make_object_w_doc(value, doc="", source=""):
     c = type(value.__class__.__name__ + "_w_doc",
              (value.__class__,),
@@ -22,6 +31,41 @@ def make_object_w_doc(value, doc="", source=""):
 
 
 make_object_w_doc.__safe_for_unpickling__ = True
+
+
+def ordinal(n):
+    """Return the ordinal string corresponding to a natural number.
+
+    For example, ordinal(2) = "2nd", ordinal(4) = "4th" and so on.
+    """
+    # FIXME: option for ordinal types
+    if False:
+        return str(n) + 'tsnrhtdd'[n % 5 * (n % 100 ^ 15 > 4 > n % 10)::4]
+    else:
+        return inflect_engine.ordinal(inflect_engine.number_to_words(n))
+
+
+def extract_name(doc):
+    """Extract the name from the documentation of a unit."""
+    return doc.splitlines()[0].lower()
+
+
+def unit_parser(unit):
+    """General parser for units.
+
+    The parse tries to parse first simple units, such as 'm/s^', then verbose
+    ones, such as 'meter per second squared'.
+    """
+    try:
+        unitlex.verbose = unityacc.verbose = False
+        res = unityacc.parse(unit, lexer=unitlex)
+    except ValueError:
+        try:
+            unitlex.verbose = unityacc.verbose = True
+            res = unityacc.parse(unit, lexer=unitlex)
+        finally:
+            unitlex.verbose = unityacc.verbose = False
+    return res
 
 
 class Doc(object):
@@ -68,13 +112,14 @@ class Unit(ODict):
        normal form for units.
 
     2. Keys can be tuples of the format ((u1, exp1), (u2, exp2), ...): this form is
-       used for unit transformations and is interpreted as (u1^exp1 u2^exp2 ...)."""
+       used for unit transformations and is interpreted as (u1^exp1 u2^exp2 ...).
+    """
 
     def __init__(self, *args, **kw):
         if len(args) == 1 and isinstance(args[0], basestring):
             unit = Unit()
             if not re.match(r"^[ \t]*$", args[0]):
-                tmp = unityacc.parse(args[0], lexer=unitlex)[0]
+                tmp = unit_parser(args[0])[0]
                 if isinstance(tmp, tuple):
                     unit += tmp[1].unit
                 else:
@@ -86,7 +131,8 @@ class Unit(ODict):
     def to_list(self):
         """Return a list representation of the unit.
 
-        This function should only be called for units stored in normal form."""
+        This function should only be called for units stored in normal form.
+        """
         r = [0] * len(baseunits)
         for n, u in self.items():
             r[n] = u
@@ -95,8 +141,9 @@ class Unit(ODict):
     def to_tuple(self):
         """Return a tuple representation of the unit.
 
-        This function should *not* be called for units stored in normal form."""
-        return tuple(x for x in self.items())
+        This function should *not* be called for units stored in normal form.
+        """
+        return tuple(self.items())
 
     def __bool__(self):
         """Check if a unit is zero, i.e. if it represent a pure number."""
@@ -141,18 +188,20 @@ class Unit(ODict):
                 v *= user_ns[n[1:-1]] ** u
         return v
         
-    def show(self, latex=False):
+    def show(self, latex=False, verbose=False):
         unit = []
+        negpow = None
         if mp.prec < 53:
             lastprec = mp.prec
             mp.prec = 53
         else:
             lastprec = False
         for n, u in self.items():
+            space_like = False
             if u == 0:
                 continue
             if isinstance(n, basestring):
-                if n[0] == '"' and n[-1] == '"':
+                if n[0] == '"' == n[-1]:
                     continue
                 if latex:
                     if n[0] == n[-1] and n[0] == "'":
@@ -160,24 +209,38 @@ class Unit(ODict):
                     else:
                         base = r"\mathrm{%s}" % n
                 else:
-                    base = n
+                    if n[0] == "'" == n[-1] or not verbose:
+                        base = n
+                    else:  # thus verbose and no quotes
+                        iu = isunit(n)
+                        base = "".join([
+                            extract_name(prefixes[iu[0]].__doc__) if iu[0] else "",
+                            extract_name(units[iu[1]].__doc__) if iu[1] else ""
+                        ])
+                        space_like = iu[1] in space_units
                 if base.find(' ') >= 0 or base.find('^') >= 0 or \
                         base.find('/') >= 0:
                     base = '(' + base + ')'
             elif isinstance(n, tuple):
-                base = Unit(ODict(n)).show(latex=latex).strip(" []")
+                base = Unit(ODict(n)).show(latex=latex, verbose=verbose).strip(" []")
                 if len(n) > 1 or mpmath.chop(n[0][1] - 1) != 0:
                     base = '(' + base + ')'
-            else:
-                if latex:
-                    base = r"\mathrm{%s}" % baseunits[n]
                 else:
-                    base = baseunits[n]
+                    space_like = isunit(n[0][0])[1] in space_units
+            else:
+                base = baseunits[n]
+                space_like = base == 'm'
+                if verbose:
+                    base = extract_name(units[base].__doc__)
+                if latex:
+                    base = r"\mathrm{%s}" % base
             base = ''.join(re.sub(r"\s*/\s*", "/", base))
             base = ''.join(re.sub(r"\s*\^\s*", "^", base))
             # if latex: base = r"\mathrm{%s}" % re.sub(r"\s+", "\,", base)
             if mpmath.chop(u - 1) == 0:
                 unit.append(base)
+                if negpow is None:
+                    negpow = False
             elif mpmath.chop(u) != 0:
                 pq = mpmath.pslq([-1, u], tol=1e-5)
                 if pq:
@@ -187,7 +250,35 @@ class Unit(ODict):
                 if q < 0:
                     p = -p
                     q = -q
-                if latex:
+                if verbose:
+                    if p < 0:
+                        if negpow is None:
+                            unit.append("inverse")
+                        # FIXME: Multiple "per" in verbose unit
+                        elif negpow is False or True:
+                            unit.append("per")
+                        p = -p
+                        negpow = True
+                    else:
+                        negpow = False
+                    if mpmath.chop(abs(q) - 1) == 0:
+                        if p == 1:
+                            unit.append(base)
+                        elif p == 2:
+                            if space_like:
+                                unit.append("square %s" % base)
+                            else:
+                                unit.append("%s squared" % base)
+                        elif p == 3:
+                            if space_like:
+                                unit.append("cubic %s" % base)
+                            else:
+                                unit.append("%s cubed" % base)
+                        else:
+                            unit.append("%s to the %s" % (base, ordinal(p)))
+                    else:
+                        unit.append("%s to the %d/%d" % (base, p, q))
+                elif latex:
                     if mpmath.chop(abs(q) - 1) == 0:
                         unit.append("%s{}^{%d}" % (base, p))
                     else:
@@ -210,10 +301,10 @@ class Unit(ODict):
                 return "[%s]" % " ".join(unit)
             
     def __str__(self):
-        return self.show()
+        return self.show(verbose=verbose)
 
     def _repr_latex_(self):
-        return '$' + self.show(latex=True) + '$'
+        return '$' + self.show(latex=True, verbose=verbose) + '$'
 
     def __add__(self, y):
         r = self.copy()
@@ -260,7 +351,6 @@ class Unit(ODict):
 
 class Value(mpnumeric):
     def __new__(cls, *args, **kw):
-        """The new function"""
         return object.__new__(cls)
         
     def __init__(self, value, unit=None, absolute=None, original=False):
@@ -282,7 +372,7 @@ class Value(mpnumeric):
             self.offset = 0
         if isinstance(unit, basestring):
             if not re.match(r"^[ \t]*$", unit): 
-                tmp, uparse = unityacc.parse(unit, lexer=unitlex)
+                tmp, uparse = unit_parser(unit)
                 if isinstance(tmp, tuple):
                     self.value *= tmp[1].value
                     if absolute is None or self.absolute:
@@ -322,8 +412,10 @@ class Value(mpnumeric):
         return value
 
     def remove_variable_units(self):
-        """Remove double quoted units from the showunit part of a Value, also changing the
-        value."""
+        """Remove double quoted units from the showunit part of a Value.
+
+        This generally will also change the value.
+        """
         global user_ns
         variables = None
         f = Value(1)
@@ -389,7 +481,7 @@ class Value(mpnumeric):
                     us.append(u)
                     vs.append(user_ns[u[1:-1]])
                 else:
-                    up = unityacc.parse(u, lexer=unitlex)
+                    up = unit_parser(u)
                     us.append(up[1])
                     # Take care of absolute units
                     if isinstance(up[0], tuple):
@@ -500,107 +592,31 @@ class Value(mpnumeric):
                 if r < mpmath.eps and min(map(abs, x)) > 1e-5:
                     u = Unit(ODict(zip(js, x)))
                     yield u
-        
-    def __repr__(self):
-        return self.__str__()
 
-    def __str__(self):
+    def show(self, latex=False, verbose=False):
         global defaultsystem
         tilde = ""
+        mytilde = r"\sim\!" if latex else "~"
         if self.showunit is not None:
             if callable(self.showunit):
-                return self.showunit(self)
+                return self.showunit(self, latex=latex, verbose=verbose)
             if self.absolute:
                 at = str(self.showunit).strip(" []")
                 u0 = Value(0, at)
                 if not u0.absolute:
-                    tilde = "~"
+                    tilde = mytilde
                     u0 = ~u0
                 u1 = Value(1, at, absolute=True)
                 value = ((self - u0) / (u1 - u0)).value
             else:
                 u0 = Value(1, str(self.showunit).strip(" []"))
                 if u0.absolute:
-                    tilde = "~"
+                    tilde = mytilde
                     u0 = ~u0
                 value = (self / u0).value
             unit = self.showunit
         elif defaultsystem and self.unit:
-            return str(Value(self).set_units(defaultsystem.args))
-        else:
-            value = self.value
-            unit = self.unit
-            u0 = Value(0, str(self.unit).strip(" []"))
-            if u0.absolute ^ self.absolute:
-                tilde = "~"
-        if self.showprefix:
-            myunit = None
-            myexp = 1  # This is redundant, but avoids an inspection warning
-            for u, e in unit.items():
-                if len(u) == 1 and u[0][1] == 1 and e != 0:
-                    myunit = u[0][0]
-                    myexp = e
-                    break
-            if myunit is not None:
-                fprefix = isunit(myunit)[0]
-                if fprefix:
-                    value = value * prefixes[fprefix]**myexp
-            else:
-                myunit = "" if prefixonly else "*"
-                myexp = 1
-                fprefix = ""
-                unit = Unit([(((myunit, 1),), 1)])
-            avalue = abs(value)
-            dexes = [(k, avalue / prefixes[k]**myexp)
-                     for k in self.showprefix
-                     if prefixes[k]**myexp <= avalue and
-                     (myunit != "" or k not in units)]
-            if not dexes:
-                dexes = [(k, -avalue / prefixes[k]**myexp)
-                         for k in self.showprefix
-                         if myunit != "" or k not in units]
-            dex, best = min(dexes, key=lambda x: x[1])
-            if dex:
-                value = value / prefixes[dex]**myexp
-            unit = Unit([(k, v) if k != ((myunit, 1),) else
-                         (((dex + myunit[len(fprefix):], 1),), v)
-                         for k, v in unit.items()])
-        v = str(value)
-        u = str(unit)
-        if v.find(r"+/-") >= 0 and v.find("(") < 0 and u:
-            v = "(" + v + ")"
-        return tilde + v + u
-
-    def _repr_pretty_(self, p, cycle):
-        if self.showunit is not None and callable(self.showunit):
-            p.text(self.showunit(self, pretty=True))
-        else:
-            p.text(str(self))
-
-    def _repr_latex_(self):
-        global defaultsystem
-        tilde = ""
-        mytilde = r"\sim\!"
-        if self.showunit is not None:
-            if callable(self.showunit):
-                return self.showunit(self, latex=True)
-            if self.absolute:
-                at = str(self.showunit).strip(" []")
-                u0 = Value(0, at)
-                if not u0.absolute:
-                    tilde = mytilde
-                    u0 = ~u0
-                u1 = Value(1, at, absolute=True)
-                value = (self - u0) / (u1 - u0)
-            else:
-                u0 = Value(1, str(self.showunit).strip(" []"))
-                if u0.absolute:
-                    tilde = mytilde
-                    u0 = ~u0
-                value = self / u0
-            unit = self.showunit
-        elif defaultsystem and self.unit:
-            return Value(self).set_units(defaultsystem.args)._repr_latex_()
+            return Value(self).set_units(defaultsystem.args).show(latex=latex, verbose=verbose)
         else:
             value = self.value
             unit = self.unit
@@ -618,43 +634,60 @@ class Value(mpnumeric):
             if myunit is not None:
                 fprefix = isunit(myunit)[0]
                 if fprefix:
-                    value = value * prefixes[fprefix]**myexp
+                    value = value * prefixes[fprefix] ** myexp
             else:
                 myunit = "" if prefixonly else "*"
                 myexp = 1
                 fprefix = ""
                 unit = Unit([(((myunit, 1),), 1)])
             avalue = abs(value)
-            dexes = [(k, avalue / prefixes[k]**myexp)
+            dexes = [(k, avalue / prefixes[k] ** myexp)
                      for k in self.showprefix
-                     if prefixes[k]**myexp <= avalue and
+                     if prefixes[k] ** myexp <= avalue and
                      (myunit != "" or k not in units)]
             if not dexes:
-                dexes = [(k, -avalue / prefixes[k]**myexp)
+                dexes = [(k, -avalue / prefixes[k] ** myexp)
                          for k in self.showprefix
                          if myunit != "" or k not in units]
             dex, best = min(dexes, key=lambda x: x[1])
             if dex:
-                value = value / prefixes[dex]**myexp
+                value = value / prefixes[dex] ** myexp
             unit = Unit([(k, v) if k != ((myunit, 1),) else
                          (((dex + myunit[len(fprefix):], 1),), v)
                          for k, v in unit.items()])
-        u = unit.show(latex=True)
-        if u:
-            u = r"\," + u
-        if hasattr(value, "_repr_latex_"):
-            v = value._repr_latex_()
+        u = unit.show(latex=latex, verbose=verbose)
+        if latex:
+            if hasattr(value, "_repr_latex_"):
+                v = value._repr_latex_()
+            else:
+                v = str(value)
+                v.replace("e", r"\times 10^{%s}")
+                v = v.replace("+/-", r" \pm ")
+            if v[0] == '$' and v[-1] == '$':
+                v = v[1:-1]
         else:
             v = str(value)
-            i = v.find("e")
-            if i >= 0:
-                v = r"$%s \times 10^{%s}$" % (v[0:i], v[i+1:])
-            v = v.replace("+/-", r" \pm ")
-        if v[0] == '$' and v[-1] == '$':
-            v = v[1:-1]
-        if v.find(r"\pm") >= 0 and v.find("(") < 0 and u:
+        if (v.find(r"+/-") >= 0 or v.find(r"\pm") >= 0) and v.find("(") < 0 and u:
             v = "(" + v + ")"
-        return "$" + tilde + v + u + "$"
+        if latex:
+            return "$" + tilde + v + u + "$"
+        else:
+            return tilde + v + u
+
+    def __repr__(self):
+        return self.show(verbose=verbose)
+
+    def __str__(self):
+        return self.show(verbose=verbose)
+
+    def _repr_pretty_(self, p, cycle):
+        if self.showunit is not None and callable(self.showunit):
+            p.text(self.showunit(self, pretty=True))
+        else:
+            p.text(str(self))
+
+    def _repr_latex_(self):
+        return self.show(latex=True, verbose=verbose)
 
     def __coerce__(self, y):
         if y.__class__ != Value:
@@ -985,6 +1018,17 @@ class LazyValue(Value):
 ######################################################################
 # Unit Lexer
 
+reserved = {
+    'square': 'SQUARE',
+    'cubic': 'CUBIC',
+    'squared': 'SQUARED',
+    'cubed': 'CUBED',
+    'per': 'PER',
+    'inverse': 'INVERSE',
+    'to': 'TO',
+    'the': 'THE'
+}
+
 # List of token names.   This is always required
 tokens = (
     'UNIT',
@@ -996,10 +1040,9 @@ tokens = (
     'LPAREN',
     'RPAREN',
     'QUOTE'
-    )
+    ) + tuple(reserved.values())
 
 # Regular expression rules for simple tokens
-t_UNIT    = r'((°\w*|\w*(\$|¢|₥|₠|€|₣|₤|£|₧|₱|¥|৲|৳|૱|௹|฿|៛|﷼|₡|₢|₦|₨|₩|₪|₫|₭|₮|₯|₰|∞|∑)\B)|(?:(?!\d)\w)+\*?)'
 t_NUMDIV  = r'/(?=[ \t]*\d)'
 t_UNITDIV = r'/(?=[ \t]*\D)'
 t_POW     = r'\^'
@@ -1009,11 +1052,22 @@ t_RPAREN  = r'\)'
 t_QUOTE   = r"\'"
 
 
-# A regular expression rule with some action code
+# A unit or a keyword in verbose mode
+def t_UNIT(t):
+    r"""((°\w*|\w*(\$|¢|₥|₠|€|₣|₤|£|₧|₱|¥|৲|৳|૱|௹|฿|៛|﷼|₡|₢|₦|₨|₩|₪|₫|₭|₮|₯|₰|∞|∑)\B)|(?:(?!\d)\w)+\*?)"""
+    if t.lexer.verbose:
+        t.type = reserved.get(t.value, 'UNIT')
+    return t
+
+
+# A regular expression for numbers and ordinals
 def t_NUMBER(t):
-    r"""[-+]?\d+(\.\d+)?"""
+    r"""(?P<number>[-+]?\d+(\.\d+)?)(?P<suffix>st|nd|rd|th)?"""
+    if t.lexer.lexmatch.group("suffix") and not t.lexer.verbose:
+        raise ValueError("line %d: Ordinals not allowed in this context (%s) " %
+                         (t.lineno, t.value))
     try:
-        t.value = float(t.value)    
+        t.value = float(t.lexer.lexmatch.group("number"))
     except ValueError:
         raise ValueError("line %d: Number conversion failed for %s " %
                          (t.lineno, t.value))
@@ -1038,6 +1092,7 @@ def t_error(t):
 
 # Build the lexer
 unitlex = lex.lex(reflags=re.UNICODE)
+unitlex.verbose = False
 
 
 ######################################################################
@@ -1045,9 +1100,17 @@ unitlex = lex.lex(reflags=re.UNICODE)
 
 def p_expression(p):
     """expression : expression1
-                  | expression1 UNITDIV expression1"""
+                  | INVERSE expression1
+                  | expression UNITDIV expression1
+                  | expression PER expression1
+    """
     if len(p) == 2:
         p[0] = p[1]
+    elif len(p) == 3:
+        a = p[2][0]
+        if isinstance(a, tuple):
+            a = a[1]
+        p[0] = (1 / a, -p[2][1])
     else:
         a = p[1][0]
         b = p[3][0]
@@ -1063,10 +1126,11 @@ def p_expression1(p):
                    | unit_exp
                    | expression1 expression1
                    | expression1 DOT expression1
-                   | unit"""
+                   | unit
+    """
     if len(p) == 2:
         p[0] = p[1]
-    elif len(p) == 3: 
+    elif len(p) == 3:
         a = p[1][0]
         b = p[2][0]
         if isinstance(a, tuple):
@@ -1074,6 +1138,7 @@ def p_expression1(p):
         if isinstance(b, tuple):
             b = b[1]
         p[0] = (a * b, p[1][1] + p[2][1])
+        return
     elif len(p) == 4 and p[2] == '.':
         a = p[1][0]
         b = p[3][0]
@@ -1089,6 +1154,35 @@ def p_expression1(p):
         p[0] = (a ** p[3], p[1][1] * p[3])
 
 
+def p_expression1_verbose(p):
+    """expression1 : SQUARE expression1
+                   | expression1 SQUARED
+                   | CUBIC expression1
+                   | expression1 CUBED
+                   | expression1 TO THE exponent
+    """
+    if len(p) == 3:
+        if p[1] == 'square':
+            x = p[2]
+            n = 2
+        elif p[2] == 'squared':
+            x = p[1]
+            n = 2
+        elif p[1] == 'cubic':
+            x = p[2]
+            n = 3
+        else:   # must be p[2] == 'cubed'
+            x = p[1]
+            n = 3
+    else:
+        x = p[1]
+        n = p[4]
+    a = x[0]
+    if isinstance(a, tuple):
+        a = a[1]
+    p[0] = (a ** n, x[1] * n)
+
+
 def p_expression_group(p):
     """expression1 : LPAREN expression RPAREN"""
     p[0] = p[2]
@@ -1097,7 +1191,8 @@ def p_expression_group(p):
 def p_exponent(p):
     """exponent : LPAREN NUMBER NUMDIV NUMBER RPAREN
                 | NUMBER NUMDIV NUMBER
-                | NUMBER"""
+                | NUMBER
+    """
     if len(p) == 6:
         p[0] = mpmath.fraction(p[2], p[4])
     elif len(p) == 4:
@@ -1116,7 +1211,8 @@ def p_unit_exp(p):
 
 def p_unit(p):
     """unit : UNIT
-            | QUOTE UNIT QUOTE"""
+            | QUOTE UNIT QUOTE
+    """
     global prefixonly, user_ns
     if p[1] == "'":
         variables = user_ns
@@ -1125,24 +1221,23 @@ def p_unit(p):
         else:
             raise ValueError("Unrecognized special unit '%s'" % p[2])
         return
-    if p[1] in units:
-        p[0] = (units[p[1]], Unit({p[1]: 1}))
-    else:
-        for n in range(1, len(p[1])):
-            k = p[1][:n]
-            u = p[1][n:]
-            if k in prefixes and u in units:
-                if isinstance(units[u], tuple):
-                    p[0] = ((units[u][0], prefixes[k] * units[u][1]), Unit({p[1]: 1}))
-                else:
-                    p[0] = (prefixes[k] * units[u], Unit({p[1]: 1}))
-                return
-        if prefixonly and p[1] in prefixes:
-            p[0] = (Value(prefixes[p[1]]), Unit({p[1]: 1}))
-        elif p[1][-1] == "*" and p[1][0:-1] in prefixes:
-            p[0] = (Value(prefixes[p[1][0:-1]]), Unit({p[1]: 1}))
+    ku = isunit(p[1], p.parser.verbose)
+    if ku:
+        k, u = ku
+        if k:
+            k = prefixes[k]
         else:
-            raise ValueError("Unrecognized unit %s" % p[1])
+            k = 1
+        if u:
+            u = units[u]
+        else:
+            u = 1
+        if isinstance(u, tuple):
+            p[0] = ((u[0], k * u[1]), Unit({p[1]: 1}))
+        else:
+            p[0] = (k * u, Unit({p[1]: 1}))
+    else:
+        raise ValueError("Unrecognized unit %s" % p[1])
 
 
 def p_error(p):
@@ -1155,6 +1250,7 @@ def p_error(p):
 
 
 unityacc = yacc.yacc(write_tables=0, debug=0)
+unityacc.verbose = False
 
 
 ######################################################################
@@ -1168,6 +1264,10 @@ def newbaseunit(name, doc=""):
     v.__doc__ = doc
     units[name] = v
     baseunits.append(name)
+    verbose_name = extract_name(doc) if doc else name
+    verbose_units[verbose_name] = name
+    if inflect_engine:
+        verbose_units[inflect_engine.plural(verbose_name)] = name
     cachedat = {}
 
 
@@ -1183,11 +1283,15 @@ def newbasecurrency(name, doc=""):
     v.__doc__ = doc
     units[name] = v
     baseunits.append(name)
+    verbose_name = extract_name(doc) if doc else name
+    verbose_units[verbose_name] = name
+    if inflect_engine:
+        verbose_units[inflect_engine.plural(verbose_name)] = name
     cachedat = {}
 
 
 def newprefix(name, value, doc="", source=""):
-    global prefixes, cachedat
+    global prefixes, verbose_prefixes, cachedat
     v = Value(value)
     v.check_pure()
     v.unit = Unit()                     # Just in case tolerant is True...
@@ -1197,16 +1301,20 @@ def newprefix(name, value, doc="", source=""):
     if source:
         v.__source__ = source
     prefixes[name] = v
+    verbose_prefixes[extract_name(doc) if doc else name] = name
     cachedat = {}
 
 
 def delprefix(name):
     global prefixes
     del prefixes[name]
+    for k, v in verbose_prefixes.items():
+        if v == name:
+            del verbose_prefixes[k]
 
 
 def newunit(name, value, doc="", source=""):
-    global units, cachedat
+    global units, verbose_units, cachedat
     if isinstance(value, LazyValue):
         v = value
     else:
@@ -1217,18 +1325,30 @@ def newunit(name, value, doc="", source=""):
                 raise ValueError("The absolute unit `%s` is not a 2-tuple" % name)
             v = (Value(value[0]), Value(value[1]))
             v[0].check_units(value[1])
+            if name == "m" or v[0].unit == units["m"].unit:
+                space_units.append(name)
         else:
             v = Value(value)
+            if name == "m" or v.unit == units["m"].unit:
+                space_units.append(name)
     v = v & Doc(doc)
     if source:
         v.__source__ = source
     units[name] = v
+    verbose_units[extract_name(doc) if doc else name] = name
+    verbose_name = extract_name(doc) if doc else name
+    verbose_units[verbose_name] = name
+    if inflect_engine:
+        verbose_units[inflect_engine.plural(verbose_name)] = name
     cachedat = {}
 
 
 def delunit(name):
     global units
     del units[name]
+    for k, v in verbose_units.items():
+        if v == name:
+            del verbose_units[k]
 
 
 def newsystem(name, value, doc=""):
@@ -1247,26 +1367,41 @@ def delsystem(name):
 isunit_re = re.compile("[A-Za-z]+")
 
 
-def isunit(fullname):
+def isunit(fullname, verbose=False):
     global prefixonly
-    match = isunit_re.match(fullname) 
+    match = isunit_re.match(fullname)
     if match:
         name = match.group(0)
     else:
         name = fullname
-    if name in units:
-        return "", name
-    elif prefixonly and name in prefixes:
-        return name, ""
-    elif name[-1] == "*" and not name[0:-1] in prefixes:
-        return name[0:-1], ""
+    if verbose:
+        if name in verbose_units:
+            return "", verbose_units[name]
+        elif prefixonly and name in verbose_prefixes:
+            return verbose_prefixes[name], ""
+        elif name[-1] == "*" and not name[0:-1] in verbose_prefixes:
+            return verbose_prefixes[name[0:-1]], ""
+        else:
+            ks = [k for k in verbose_prefixes.keys()
+                  if k == name[:len(k)]]
+            for k in ks:
+                u = name[len(k):]
+                if u in verbose_units:
+                    return verbose_prefixes[k], verbose_units[u]
     else:
-        ks = [k for k in prefixes.keys()
-              if k == name[:len(k)]]
-        for k in ks:
-            u = name[len(k):]
-            if u in units:
-                return k, u
+        if name in units:
+            return "", name
+        elif prefixonly and name in prefixes:
+            return name, ""
+        elif name[-1] == "*" and not name[0:-1] in prefixes:
+            return name[0:-1], ""
+        else:
+            ks = [k for k in prefixes.keys()
+                  if k == name[:len(k)]]
+            for k in ks:
+                u = name[len(k):]
+                if u in units:
+                    return k, u
     return False
 
 
@@ -1280,6 +1415,10 @@ def isunit(fullname):
 # one can compute expressions such as sum([1[m], 2[m], 3[m]]) instead
 # of the slight more complicated way sum([1[m], 2[m], 3[m]], 0[m]).
 tolerant = True
+
+# Should we print out units using verbose strings (such as meter per
+# square second) or standard SI notation (such as m s^-2)?
+verbose = False
 
 # Do we accept a unit composed of a single prefix?  It should be
 # probably avoided, especially if used with powers: 3k^2 shouldn't be
@@ -1297,7 +1436,10 @@ showerrors = 2
 
 baseunits = []
 units = ODict()
+verbose_units = ODict()
+space_units = ["m"]
 prefixes = ODict()
+verbose_prefixes = ODict()
 systems = ODict()
 formats = ODict()
 defaultsystem = None
@@ -1319,6 +1461,7 @@ def load_variables(namespace):
     namespace['systems'] = systems
     namespace['formats'] = formats
     namespace['defaultsystem'] = defaultsystem
+    namespace['verbose'] = lambda x: x.show(verbose=True)
     user_ns = namespace
 
 
@@ -1334,10 +1477,11 @@ def save_variables(namespace):
 
 
 def reset():
-    global baseunits, units, prefixes, systems, formats, defaultsystem, \
+    global baseunits, units, space_units, prefixes, systems, formats, defaultsystem, \
       cachedat
     baseunits = []
     units = ODict()
+    space_units = ["m"]
     prefixes = ODict()
     systems = ODict()
     formats = ODict()

@@ -117,7 +117,7 @@ def load(namespace):
 
 
 def unload(namespace):
-    """Unload all numpy defined functions"""
+    """Unload all numpy defined functions."""
     names = dir(numpy) + ["numpy", "ufloat"]
     for name in names:
         f = getattr(numpy, name)

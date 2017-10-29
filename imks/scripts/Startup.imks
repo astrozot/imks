@@ -3,13 +3,13 @@
 ##    (c) 2000-2014 by Marco Lombardi <marco.lombardi@gmail.com>    ##
 ######################################################################
 
-%newbaseunit m   # "Meter, basic unit of length.\n\nThe meter is the length of the path travelled by light in vacuum during a time\ninterval of 1/299 792 458 of a second."
-%newbaseunit g   # "Gram, basic unit of mass.\n\nThe kilogram is the unit of mass; it is equal to the mass of the international\nprototype of the kilogram."
-%newbaseunit s   # "Second, basic unit of time.\n\nThe second is the duration of 9 192 631 770 periods of the radiation\ncorresponding to the transition between the two hyperfine levels of the ground\nstate of the cesium 133 atom."
-%newbaseunit A   # "Ampere, basic unit of electric current.\n\nThe ampere is that constant current which, if maintained in two straight\nparallel conductors of infinite length, of negligible circular cross-section,\nand placed 1 meter apart in vacuum, would produce between these conductors a force equal to 2 x 10^-7 newton per meter of length."
-%newbaseunit K   # "Kelvin degree, basic unit of temperature.\n\nThe kelvin, unit of thermodynamic temperature, is the fraction 1/273.16 of the\nthermodynamic temperature of the triple point of water."
-%newbaseunit mol # "Mole, basic unit of amount of substance.\n\nThe mole is the amount of substance of a system which contains as many\nelementary entities as there are atoms in 0.012 kilogram of carbon 12."
-%newbaseunit cd  # "Candle, basic unit of luminous intensity.\n\nThe candela is the luminous intensity, in a given direction, of a source that\nemits monochromatic radiation of frequency 540 x 10^12 hertz and that has a\nradiant intensity in that direction of 1/683 watt per steradian."
+%newbaseunit m   # "Meter\n\nThe meter is the length of the path travelled by light in vacuum during a time\ninterval of 1/299 792 458 of a second."
+%newbaseunit g   # "Gram\n\nThe kilogram is the unit of mass; it is equal to the mass of the international\nprototype of the kilogram."
+%newbaseunit s   # "Second\n\nThe second is the duration of 9 192 631 770 periods of the radiation\ncorresponding to the transition between the two hyperfine levels of the ground\nstate of the cesium 133 atom."
+%newbaseunit A   # "Ampere\n\nThe ampere is that constant current which, if maintained in two straight\nparallel conductors of infinite length, of negligible circular cross-section,\nand placed 1 meter apart in vacuum, would produce between these conductors a force equal to 2 x 10^-7 newton per meter of length."
+%newbaseunit K   # "Kelvin\n\nThe kelvin, unit of thermodynamic temperature, is the fraction 1/273.16 of the\nthermodynamic temperature of the triple point of water."
+%newbaseunit mol # "Mole\n\nThe mole is the amount of substance of a system which contains as many\nelementary entities as there are atoms in 0.012 kilogram of carbon 12."
+%newbaseunit cd  # "Candle\n\nThe candela is the luminous intensity, in a given direction, of a source that\nemits monochromatic radiation of frequency 540 x 10^12 hertz and that has a\nradiant intensity in that direction of 1/683 watt per steradian."
 
 %newunit K=(0[K], 1[K]) # "Kelvin degree, basic unit of temperature.\n\nThe kelvin, unit of thermodynamic temperature, is the fraction 1/273.16 of the\nthermodynamic temperature of the triple point of water."
 

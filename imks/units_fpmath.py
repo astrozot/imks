@@ -257,7 +257,7 @@ def load(namespace):
 
 
 def unload(namespace):
-    """Unload all mpmath defined functions"""
+    """Unload all mpmath defined functions."""
     names = dir(mpmath) + ["fraction", "fp", "ufloat", "nint", "frac"]
     for name in names:
         if hasattr(mpmath.mp, name):
