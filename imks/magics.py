@@ -71,8 +71,9 @@ class ImksMagic(Magics):
                        units are sorted to show first positive units [%s]
           -k <on|off>  toggle the use of prefixes without units.  When enabled, one
                        can enter quantities such as 1[k] to indicate 1000 [%s]
-          -v <on|off>  toggle the verbose output of units.  When enabled, units are
-                       printed, e.g., as "meter per second squared" [%s]
+          -v <0|1|2>   print units in standard form (0), using verbose strings but
+                       short exponents (1), or using verbose strings and spelled
+                       exponents [%s]
           -$ <0|1|2>   do not complete currencies (0), complete them only if capital
                        letters are present (1), or complete them anyway (2) [%s]
           -c <name>    specify the engine for mathematical calculations: must be one
@@ -100,7 +101,8 @@ class ImksMagic(Magics):
              "on" if config["unit_tolerant"] else "off",
              "on" if config["sort_units"] else "off",
              "on" if config["prefix_only"] else "off",
-             "on" if config["unit_verbose"] else "off",
+             "2" if config["unit_verbose"] is True else
+             "0" if config["unit_verbose"] is False else "1",
              "2" if config["complete_currencies"] is True else
              "0" if config["complete_currencies"] is False else "1",
              config["engine"], config["show_errors"],
@@ -181,14 +183,17 @@ class ImksMagic(Magics):
             else:
                 print("Incorrect argument.  Use yes/on/1 or no/off/0")
         if "v" in opts:
-            if opts["v"] in ["on", "1", "yes"]:
+            if opts["v"] in ["on", "2", "yes"]:
                 config["unit_verbose"] = units.verbose = True
-                imks_print("Verbose output of units enabled")
+                imks_print("Verbose output of units fully enabled")
             elif opts["v"] in ["off", "0", "no"]:
                 config["unit_verbose"] = units.verbose = False
                 imks_print("Verbose output of units disabled")
+            elif opts["v"] in ["partial", "1"]:
+                config["unit_verbose"] = units.verbose = "partial"
+                imks_print("Verbose output of units partially enabled")
             else:
-                print("Incorrect argument.  Use yes/on/1 or no/off/0")
+                print("Incorrect argument.  Use yes/on/2, partial/1, or no/off/0")
         if "$" in opts:
             if opts["$"] in ["on", "2", "yes"]:
                 config["complete_currencies"] = True

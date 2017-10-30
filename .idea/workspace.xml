@@ -2,25 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e925fe92-0c06-4ed2-ae38-434eb35ec33f" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/imks/completers.py" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/imks/xdict.py" afterPath="" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/imks/spelling.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/_version.py" afterPath="$PROJECT_DIR$/imks/_version.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/calendars.py" afterPath="$PROJECT_DIR$/imks/calendars.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/config.py" afterPath="$PROJECT_DIR$/imks/config.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/constants.py" afterPath="$PROJECT_DIR$/imks/constants.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/imks.py" afterPath="$PROJECT_DIR$/imks/imks.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/imks_standalone.py" afterPath="$PROJECT_DIR$/imks/imks_standalone.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/currencies.py" afterPath="$PROJECT_DIR$/imks/currencies.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/magics.py" afterPath="$PROJECT_DIR$/imks/magics.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/scripts/Startup.imks" afterPath="$PROJECT_DIR$/imks/scripts/Startup.imks" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/shell.py" afterPath="$PROJECT_DIR$/imks/shell.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units.py" afterPath="$PROJECT_DIR$/imks/units.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_fpmath.py" afterPath="$PROJECT_DIR$/imks/units_fpmath.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_math.py" afterPath="$PROJECT_DIR$/imks/units_math.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_mcerp.py" afterPath="$PROJECT_DIR$/imks/units_mcerp.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_mpmath.py" afterPath="$PROJECT_DIR$/imks/units_mpmath.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_numpy.py" afterPath="$PROJECT_DIR$/imks/units_numpy.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_soerp.py" afterPath="$PROJECT_DIR$/imks/units_soerp.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/imks/units_umath.py" afterPath="$PROJECT_DIR$/imks/units_umath.py" />
     </list>
     <list id="52b2f21b-fdab-4624-8b55-e55cac59b889" name="v1.2.7: PyCharm refactory" comment="* Complete check of all files with PyCharm&#10;* Several bugfixes" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -43,18 +31,6 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="imks.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/imks/imks.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="162">
-              <caret line="84" column="56" lean-forward="false" selection-start-line="84" selection-start-column="36" selection-end-line="84" selection-end-column="56" />
-              <folding>
-                <element signature="e#25#89#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="completers.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/imks/completers.py">
           <provider selected="true" editor-type-id="text-editor">
@@ -77,7 +53,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="_version.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="_version.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/imks/_version.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="75">
@@ -97,31 +73,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="shell.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/imks/shell.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="155">
-              <caret line="66" column="23" lean-forward="false" selection-start-line="66" selection-start-column="23" selection-end-line="66" selection-end-column="23" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/imks/__init__.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="120">
-              <caret line="8" column="0" lean-forward="true" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="units.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="units.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/imks/units.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="173">
-              <caret line="16" column="50" lean-forward="false" selection-start-line="16" selection-start-column="50" selection-end-line="16" selection-end-column="50" />
+            <state relative-caret-position="428">
+              <caret line="1182" column="33" lean-forward="false" selection-start-line="1182" selection-start-column="33" selection-end-line="1182" selection-end-column="33" />
               <folding>
                 <element signature="e#25#89#0" expanded="true" />
               </folding>
@@ -129,21 +85,53 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="case.py" pinned="false" current-in-tab="false">
-        <entry file="file:///Applications/anaconda/lib/python2.7/unittest/case.py">
+      <file leaf-file-name="calendars.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/imks/calendars.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="137">
-              <caret line="392" column="0" lean-forward="false" selection-start-line="392" selection-start-column="0" selection-end-line="392" selection-end-column="0" />
+            <state relative-caret-position="45">
+              <caret line="3" column="2" lean-forward="false" selection-start-line="3" selection-start-column="2" selection-end-line="3" selection-end-column="2" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
-        <entry file="file:///Applications/anaconda/lib/python2.7/unittest/main.py">
+      <file leaf-file-name="currencies.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/imks/currencies.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="144">
-              <caret line="94" column="0" lean-forward="false" selection-start-line="94" selection-start-column="0" selection-end-line="94" selection-end-column="0" />
+            <state relative-caret-position="173">
+              <caret line="128" column="11" lean-forward="false" selection-start-line="128" selection-start-column="10" selection-end-line="128" selection-end-column="11" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="magics.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/imks/magics.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="146">
+              <caret line="912" column="48" lean-forward="false" selection-start-line="912" selection-start-column="40" selection-end-line="912" selection-end-column="48" />
+              <folding>
+                <element signature="e#25#89#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="spelling.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/imks/spelling.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="30">
+              <caret line="2" column="2" lean-forward="false" selection-start-line="2" selection-start-column="2" selection-end-line="2" selection-end-column="2" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="constants.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/imks/constants.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="780">
+              <caret line="52" column="6" lean-forward="false" selection-start-line="52" selection-start-column="6" selection-end-line="52" selection-end-column="6" />
               <folding />
             </state>
           </provider>
@@ -153,36 +141,36 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>yacc.</find>
-      <find>unityacc</find>
-      <find>unityacc.parse(args[0], lexer=unitlex)</find>
+      <find>UnitParseError</find>
+      <find>Error</find>
       <find>unityacc.parse</find>
-      <find>meter</find>
-      <find>baseunit</find>
-      <find>parse</find>
-      <find>verbose_unit</find>
-      <find>def imks</find>
-      <find>on/1 or off/0</find>
+      <find>unityacc</find>
+      <find>finally</find>
       <find>verbose</find>
+      <find>strip</find>
+      <find>show</find>
       <find>show(</find>
-      <find>&quot;v&quot; in</find>
-      <find>self.shell</find>
-      <find>prefix</find>
-      <find>&quot;&quot;&quot;</find>
-      <find>ImksCompleter</find>
-      <find>imks_completer</find>
-      <find>retrieve_obj</find>
-      <find>self</find>
-      <find>currencies</find>
-      <find>calendars</find>
-      <find>units</find>
-      <find>imks_load_imks_</find>
-      <find>standalone_completer</find>
-      <find>readline</find>
-      <find>complete</find>
-      <find>imks_standalone_completer</find>
-      <find>event</find>
-      <find>inflect</find>
+      <find>str(</find>
+      <find>FIXME</find>
+      <find>print(</find>
+      <find>asd</find>
+      <find>verbose_ex</find>
+      <find>UNITDIV</find>
+      <find>doc</find>
+      <find>t_UNIT</find>
+      <find>symbols</find>
+      <find>USD</find>
+      <find>pl</find>
+      <find>TOKEN</find>
+      <find>curency</find>
+      <find>currency_sym</find>
+      <find>Curren</find>
+      <find>$</find>
+      <find>\$</find>
+      <find>isunit</find>
+      <find>unit_regex</find>
+      <find>unit_re</find>
+      <find>print</find>
     </findStrings>
     <replaceStrings>
       <replace>my_units</replace>
@@ -200,7 +188,6 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/imks/__init__.py" />
-        <option value="$PROJECT_DIR$/imks/currencies.py" />
         <option value="$PROJECT_DIR$/imks/jpl.py" />
         <option value="$PROJECT_DIR$/run_imks.py" />
         <option value="$PROJECT_DIR$/imks/test_shell.py" />
@@ -210,7 +197,6 @@
         <option value="$PROJECT_DIR$/imks/wolfram.py" />
         <option value="$PROJECT_DIR$/imks/scripts/Startup.imks" />
         <option value="$PROJECT_DIR$/imks/config.py" />
-        <option value="$PROJECT_DIR$/imks/magics.py" />
         <option value="$PROJECT_DIR$/imks/calendars.py" />
         <option value="$PROJECT_DIR$/imks/constants.py" />
         <option value="$PROJECT_DIR$/imks/shell.py" />
@@ -224,8 +210,11 @@
         <option value="$PROJECT_DIR$/imks/completers.py" />
         <option value="$PROJECT_DIR$/imks/imks.py" />
         <option value="$PROJECT_DIR$/imks/imks_standalone.py" />
-        <option value="$PROJECT_DIR$/imks/_version.py" />
+        <option value="$PROJECT_DIR$/imks/magics.py" />
+        <option value="$PROJECT_DIR$/imks/currencies.py" />
         <option value="$PROJECT_DIR$/imks/units.py" />
+        <option value="$PROJECT_DIR$/imks/spelling.py" />
+        <option value="$PROJECT_DIR$/imks/_version.py" />
       </list>
     </option>
   </component>
@@ -500,11 +489,11 @@
     <frame x="36" y="23" width="1400" height="860" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5029455" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32941177" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2533137" sideWeight="0.49237472" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -523,6 +512,32 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="RECENTLY_FILTERED_USER_GROUPS">
+                <collection />
+              </option>
+              <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+                <collection />
+              </option>
+              <option name="COLUMN_ORDER">
+                <list>
+                  <option value="0" />
+                  <option value="1" />
+                  <option value="2" />
+                  <option value="3" />
+                </list>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
@@ -614,30 +629,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/imks/calendars.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="173">
-          <caret line="1435" column="7" lean-forward="false" selection-start-line="1435" selection-start-column="4" selection-end-line="1435" selection-end-column="7" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/imks/constants.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="278">
-          <caret line="20" column="7" lean-forward="true" selection-start-line="20" selection-start-column="7" selection-end-line="20" selection-end-column="7" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/imks/currencies.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="343">
-          <caret line="176" column="18" lean-forward="true" selection-start-line="176" selection-start-column="18" selection-end-line="176" selection-end-column="18" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/imks/geolocation.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="173">
@@ -661,16 +652,6 @@
         <state relative-caret-position="173">
           <caret line="24" column="3" lean-forward="false" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="3" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/imks/magics.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="173">
-          <caret line="977" column="11" lean-forward="false" selection-start-line="977" selection-start-column="8" selection-end-line="977" selection-end-column="11" />
-          <folding>
-            <element signature="e#25#89#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -846,14 +827,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/run_imks.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
-          <caret line="11" column="26" lean-forward="false" selection-start-line="11" selection-start-column="13" selection-end-line="11" selection-end-column="26" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/imks/imks.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="162">
@@ -882,21 +855,71 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/imks/_version.py">
+    <entry file="file://$PROJECT_DIR$/run_imks.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="75">
-          <caret line="5" column="20" lean-forward="false" selection-start-line="5" selection-start-column="20" selection-end-line="5" selection-end-column="20" />
+        <state relative-caret-position="150">
+          <caret line="11" column="26" lean-forward="false" selection-start-line="11" selection-start-column="13" selection-end-line="11" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/magics.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="146">
+          <caret line="912" column="48" lean-forward="false" selection-start-line="912" selection-start-column="40" selection-end-line="912" selection-end-column="48" />
+          <folding>
+            <element signature="e#25#89#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/currencies.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="173">
+          <caret line="128" column="11" lean-forward="false" selection-start-line="128" selection-start-column="10" selection-end-line="128" selection-end-column="11" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/imks/units.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="173">
-          <caret line="16" column="50" lean-forward="false" selection-start-line="16" selection-start-column="50" selection-end-line="16" selection-end-column="50" />
+        <state relative-caret-position="428">
+          <caret line="1182" column="33" lean-forward="false" selection-start-line="1182" selection-start-column="33" selection-end-line="1182" selection-end-column="33" />
           <folding>
             <element signature="e#25#89#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/calendars.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="45">
+          <caret line="3" column="2" lean-forward="false" selection-start-line="3" selection-start-column="2" selection-end-line="3" selection-end-column="2" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/spelling.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="30">
+          <caret line="2" column="2" lean-forward="false" selection-start-line="2" selection-start-column="2" selection-end-line="2" selection-end-column="2" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/constants.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="780">
+          <caret line="52" column="6" lean-forward="false" selection-start-line="52" selection-start-column="6" selection-end-line="52" selection-end-column="6" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/imks/_version.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="20" lean-forward="false" selection-start-line="5" selection-start-column="20" selection-end-line="5" selection-end-column="20" />
+          <folding />
         </state>
       </provider>
     </entry>

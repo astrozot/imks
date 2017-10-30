@@ -19,56 +19,6 @@ class Currency(units.Value):
         self.timestamp = timestamp
 
 
-# Extracted from: http://en.wikipedia.org/wiki/List_of_circulating_currencies
-currency_symbols = {
-    'AED': u'د.إ',
-    'AFN': u'؋',
-    'BDT': u'৳',
-    'BGN': u'лв',
-    'BHD': u'.د.ب',
-    'CNY': u'元',
-    'CRC': u'₡',
-    'CZK': u'Kč',
-    'DZD': u'د.ج',
-    'EGP': u'ج.م',
-    'ERN': u'Nfk',
-    'EUR': u'€',
-    'GBP': u'£',
-    'GEL': u'ლ',
-    'GHS': u'₵',
-    'ILS': u'₪',
-    'IQD': u'ع.د',
-    'IRR': u'﷼',
-    'JOD': u'د.ا',
-    'JPY': u'¥',
-    'KES': u'Sh',
-    'KHR': u'៛',
-    'KRW': u'₩',
-    'KWD': u'د.ك',
-    'LAK': u'₭',
-    'LBP': u'ل.ل',
-    'LKR': u'රු',
-    'LYD': u'ل.د',
-    'MAD': u'د.م.',
-    'MKD': u'ден',
-    'MNT': u'₮',
-    'NGN': u'₦',
-    'OMR': u'ر.ع.',
-    'PHP': u'₱',
-    'PLN': u'zł',
-    'PYG': u'₲',
-    'QAR': u'ر.ق',
-    'RSD': u'дин',
-    'RUB': u'руб.',
-    'SAR': u'ر.س',
-    'SYP': u'ل.س',
-    'THB': u'฿',
-    'TND': u'د.ت',
-    'UAH': u'₴',
-    'VND': u'₫',
-    'YER': u'﷼'}
-
-
 def getrates(app_id="", offline=False, grace=3, historical=None,
              strict=False, timeout=3):
     import os, os.path, time, pickle, json
@@ -146,9 +96,9 @@ def saverates(app_id="", base_id=0, *args, **kw):
                 c.__timestamp__ = timestamp
                 c.__source__ = "openexchangerates.org"
                 units.units[k] = c
-                if k in currency_symbols:
-                    units.units[currency_symbols[k]] = c
-                    currencydict[currency_symbols[k]] = currencydict[k]
+                if k in units.currency_symbols:
+                    units.units[units.currency_symbols[k]] = c
+                    currencydict[units.currency_symbols[k]] = currencydict[k]
 
 
 def currencies(app_id="", grace=3, historical=None, background=False):

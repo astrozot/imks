@@ -12,17 +12,76 @@ try:
 except NameError:
     basestring = str
 
+from .spelling import *
 
-# TODO: try to remove inflect dependency
-# TODO: interpret numbers and ordinals spelled out
-try:
-    import inflect
-    inflect_engine = inflect.engine()
-except ImportError:
-    inflect_engine = None
 
+#####################################################################
+# Unit errors definition
+
+class UnitError(Exception):
+    """Abstract class for general unit exceptions."""
+    pass
+
+class UnitParseError(UnitError):
+    """Class for unit parsing errors."""
+    def __init__(self, expression, message, lineno=None):
+        self.expression = expression
+        self.message = message
+        self.lineno = lineno
+
+    def __str__(self):
+        if self.lineno:
+            return "Unit error for `%s' at line %d: %s" % \
+                   (self.expression, self.lineno, self.message)
+        else:
+            return "Unit error for `%s': %s" % \
+                   (self.expression, self.message)
+
+
+class UnitCompatibilityError(UnitError):
+    """Class for unit compability exceptions."""
+    def __init__(self, u1, u2, where=None):
+        self.u1 = u1
+        self.u2 = u2
+        if where > 2:
+            self.fn = where
+        else:
+            self.fn = traceback.extract_stack()[-2][2]
+        if self.fn == "check_units" or self.fn == "check_pure":
+            self.fn = traceback.extract_stack()[-3][2]
+
+    def __str__(self):
+        return "%s incompatible with %s in %s" % \
+               (str(self.u1) or "[]", str(self.u2) or "[]", self.fn)
+
+
+class UnitAbsoluteError(Exception):
+    """Class for exceptions related to absolute units."""
+    def __init__(self, a1, a2, where=None):
+        self.a1 = "absolute" if a1 else "relative"
+        self.a2 = "absolute" if a2 else "relative"
+        if where > 2:
+            self.fn = where
+        else:
+            self.fn = traceback.extract_stack()[-2][2]
+        if self.fn == "check_units" or self.fn == "check_pure":
+            self.fn = traceback.extract_stack()[-3][2]
+
+    def __str__(self):
+        return "%s unit incompatible with %s unit in %s" % \
+               (self.a1, self.a2, self.fn)
+
+
+#####################################################################
+# Documentation functions
 
 def make_object_w_doc(value, doc="", source=""):
+    """Defines an object with a documentation string.
+
+    Works by creating a new class that inherits all attributes of the original
+    object. Needed for base objects that allow no attributes (for example
+    tuples).
+    """
     c = type(value.__class__.__name__ + "_w_doc",
              (value.__class__,),
              {"__doc__": doc, "__source__": source,
@@ -33,21 +92,9 @@ def make_object_w_doc(value, doc="", source=""):
 make_object_w_doc.__safe_for_unpickling__ = True
 
 
-def ordinal(n):
-    """Return the ordinal string corresponding to a natural number.
-
-    For example, ordinal(2) = "2nd", ordinal(4) = "4th" and so on.
-    """
-    # FIXME: option for ordinal types
-    if False:
-        return str(n) + 'tsnrhtdd'[n % 5 * (n % 100 ^ 15 > 4 > n % 10)::4]
-    else:
-        return inflect_engine.ordinal(inflect_engine.number_to_words(n))
-
-
 def extract_name(doc):
     """Extract the name from the documentation of a unit."""
-    return doc.splitlines()[0].lower()
+    return doc.splitlines()[0].lower().replace(" ", "-")
 
 
 def unit_parser(unit):
@@ -59,7 +106,7 @@ def unit_parser(unit):
     try:
         unitlex.verbose = unityacc.verbose = False
         res = unityacc.parse(unit, lexer=unitlex)
-    except ValueError:
+    except UnitParseError:
         try:
             unitlex.verbose = unityacc.verbose = True
             res = unityacc.parse(unit, lexer=unitlex)
@@ -84,22 +131,6 @@ class Doc(object):
         except AttributeError:
             x = make_object_w_doc(x, self.doc, self.source)
         return x
-
-
-class UnitError(Exception):
-    def __init__(self, u):
-        self.u1 = u[0]
-        self.u2 = u[1]
-        if len(u) > 2:
-            self.fn = u[2]
-        else:
-            self.fn = traceback.extract_stack()[-2][2]
-        if self.fn == "check_units" or self.fn == "check_pure":
-            self.fn = traceback.extract_stack()[-3][2]
-        
-    def __str__(self):
-        return "%s incompatible with %s in %s" % \
-               (str(self.u1) or "[]", str(self.u2) or "[]", self.fn)
 
 
 class Unit(ODict):
@@ -222,7 +253,7 @@ class Unit(ODict):
                         base.find('/') >= 0:
                     base = '(' + base + ')'
             elif isinstance(n, tuple):
-                base = Unit(ODict(n)).show(latex=latex, verbose=verbose).strip(" []")
+                base = Unit(ODict(n)).show(latex=latex, verbose=verbose)
                 if len(n) > 1 or mpmath.chop(n[0][1] - 1) != 0:
                     base = '(' + base + ')'
                 else:
@@ -275,9 +306,13 @@ class Unit(ODict):
                             else:
                                 unit.append("%s cubed" % base)
                         else:
-                            unit.append("%s to the %s" % (base, ordinal(p)))
+                            unit.append("%s to the %s" % (base, number_to_ordinal(p, short=verbose is not True)))
                     else:
-                        unit.append("%s to the %d/%d" % (base, p, q))
+                        if verbose is True:
+                            unit.append("%s to %s %s" % (base, number_to_cardinal(p),
+                                                         number_to_ordinal(q, numerator=p)))
+                        else:
+                            unit.append("%s to the %d/%s" % (base, p, number_to_ordinal(q, short=True)))
                 elif latex:
                     if mpmath.chop(abs(q) - 1) == 0:
                         unit.append("%s{}^{%d}" % (base, p))
@@ -293,12 +328,12 @@ class Unit(ODict):
         if len(unit) == 0 or (len(unit) == 1 and not unit[0]):
             return ""
         elif len(unit) == 1 and unit[0][0] == '(' and unit[0][-1] == ')':
-            return "[%s]" % unit[0][1:-1]
+            return unit[0][1:-1]
         else:
             if latex:
-                return "[%s]" % r"\,".join(unit)
+                return r"\,".join(unit)
             else:
-                return "[%s]" % " ".join(unit)
+                return " ".join(unit)
             
     def __str__(self):
         return self.show(verbose=verbose)
@@ -395,8 +430,8 @@ class Value(mpnumeric):
             u1 = y.unit
             if u0 != u1 and (not tolerant or (self.value != 0 and y.value != 0)):
                 if where:
-                    raise UnitError((u0, u1, where))
-                raise UnitError((u0, u1))
+                    raise UnitCompatibilityError(u0, u1, where)
+                raise UnitCompatibilityError(u0, u1)
         else:
             self.check_pure(where=where)
         return u0
@@ -407,8 +442,8 @@ class Value(mpnumeric):
         unit = self.unit
         if bool(unit) and (not tolerant or value != 0):
             if where:
-                raise UnitError((unit, Unit(), where))
-            raise UnitError((unit, Unit()))
+                raise UnitCompatibilityError(unit, Unit(), where)
+            raise UnitCompatibilityError(unit, Unit())
         return value
 
     def remove_variable_units(self):
@@ -452,7 +487,7 @@ class Value(mpnumeric):
                     s.showprefix.extend(prefixes.keys())
                 else:
                     if u[0:-1] not in prefixes:
-                        raise ValueError("Unknown prefix %s" % u[0:-1])
+                        raise UnitParseError(u, "unknown prefix")
                     s.showprefix.append(u[0:-1])
             elif u == ".":
                 s.showprefix.append("")
@@ -601,7 +636,7 @@ class Value(mpnumeric):
             if callable(self.showunit):
                 return self.showunit(self, latex=latex, verbose=verbose)
             if self.absolute:
-                at = str(self.showunit).strip(" []")
+                at = self.showunit.show(verbose=False)
                 u0 = Value(0, at)
                 if not u0.absolute:
                     tilde = mytilde
@@ -609,7 +644,7 @@ class Value(mpnumeric):
                 u1 = Value(1, at, absolute=True)
                 value = ((self - u0) / (u1 - u0)).value
             else:
-                u0 = Value(1, str(self.showunit).strip(" []"))
+                u0 = Value(1, self.showunit.show(verbose=False))
                 if u0.absolute:
                     tilde = mytilde
                     u0 = ~u0
@@ -620,7 +655,7 @@ class Value(mpnumeric):
         else:
             value = self.value
             unit = self.unit
-            u0 = Value(0, str(self.unit).strip(" []"))
+            u0 = Value(0, self.unit.show(verbose=False))
             if u0.absolute ^ self.absolute:
                 tilde = mytilde
         if self.showprefix:
@@ -656,6 +691,8 @@ class Value(mpnumeric):
                          (((dex + myunit[len(fprefix):], 1),), v)
                          for k, v in unit.items()])
         u = unit.show(latex=latex, verbose=verbose)
+        if u:
+            u = "[" + u + "]"
         if latex:
             if hasattr(value, "_repr_latex_"):
                 v = value._repr_latex_()
@@ -701,7 +738,7 @@ class Value(mpnumeric):
             y = Value(y)
         unit = self.check_units(y)
         if self.absolute and y.absolute:
-            raise ValueError("Cannot add two absolute values")
+            raise UnitAbsoluteError(self.absolute, y.absolute)
         return Value(self.value + y.value, unit,
                      absolute=self.absolute or y.absolute)
 
@@ -710,7 +747,7 @@ class Value(mpnumeric):
             y = Value(y)
         unit = self.check_units(y)
         if not self.absolute and y.absolute:
-            raise ValueError("Cannot subtract an absolute value from a relative one")
+            raise UnitAbsoluteError(self.absolute, y.absolute)
         return Value(self.value - y.value, unit,
                      absolute=self.absolute and not y.absolute)
     
@@ -820,7 +857,7 @@ class Value(mpnumeric):
             y = Value(y)
         unit = self.check_units(y)
         if not self.absolute and y.absolute:
-            raise ValueError("Cannot subtract an absolute value from a relative one")
+            raise UnitAbsoluteError(self.absolute, y.absolute)
         return Value(y.value - self.value, unit,
                      absolute=y.absolute and not self.absolute)
 
@@ -1010,9 +1047,61 @@ class LazyValue(Value):
             self._unit_once = False
             self._unit_set = True
         elif self._unit_set and self.unit != res.unit:
-            raise ValueError("Unit changed for lazy object from [%s] to [%s]" %
-                             (str(self.unit).strip("[] "), str(res.unit).strip("[] ")))
+            raise UnitCompatibilityError(self.unit, res.unit)
         return getattr(res, attr)
+
+######################################################################
+# Currency symbols
+
+# Extracted from: http://en.wikipedia.org/wiki/List_of_circulating_currencies
+currency_symbols = {
+    'AED': u'د.إ',
+    'AFN': u'؋',
+    'BDT': u'৳',
+    'BGN': u'лв',
+    'BHD': u'.د.ب',
+    'CNY': u'元',
+    'CRC': u'₡',
+    'CZK': u'Kč',
+    'DZD': u'د.ج',
+    'EGP': u'ج.م',
+    'ERN': u'Nfk',
+    'EUR': u'€',
+    'GBP': u'£',
+    'GEL': u'ლ',
+    'GHS': u'₵',
+    'ILS': u'₪',
+    'IQD': u'ع.د',
+    'IRR': u'﷼',
+    'JOD': u'د.ا',
+    'JPY': u'¥',
+    'KES': u'Sh',
+    'KHR': u'៛',
+    'KRW': u'₩',
+    'KWD': u'د.ك',
+    'LAK': u'₭',
+    'LBP': u'ل.ل',
+    'LKR': u'රු',
+    'LYD': u'ل.د',
+    'MAD': u'د.م.',
+    'MKD': u'ден',
+    'MNT': u'₮',
+    'NGN': u'₦',
+    'OMR': u'ر.ع.',
+    'PHP': u'₱',
+    'PLN': u'zł',
+    'PYG': u'₲',
+    'QAR': u'ر.ق',
+    'RSD': u'дин',
+    'RUB': u'руб.',
+    'SAR': u'ر.س',
+    'SYP': u'ل.س',
+    'THB': u'฿',
+    'TND': u'د.ت',
+    'UAH': u'₴',
+    'USD': u'$',
+    'VND': u'₫',
+    'YER': u'﷼'}
 
 
 ######################################################################
@@ -1026,13 +1115,15 @@ reserved = {
     'per': 'PER',
     'inverse': 'INVERSE',
     'to': 'TO',
-    'the': 'THE'
+    'the': 'THE',
+    'over': 'OVER'
 }
 
 # List of token names.   This is always required
 tokens = (
     'UNIT',
     'NUMBER',
+    'ORDINAL',
     'NUMDIV',
     'UNITDIV',
     'POW',
@@ -1051,26 +1142,47 @@ t_LPAREN  = r'\('
 t_RPAREN  = r'\)'
 t_QUOTE   = r"\'"
 
+unit_regex = u"([^\\W\d]+(-[^\\W\\d]+)*|°\\w*|\\$|" + \
+             u"|".join([re.escape(v) for v in currency_symbols.values()]) + u")"
 
 # A unit or a keyword in verbose mode
+@lex.TOKEN(unit_regex)
 def t_UNIT(t):
-    r"""((°\w*|\w*(\$|¢|₥|₠|€|₣|₤|£|₧|₱|¥|৲|৳|૱|௹|฿|៛|﷼|₡|₢|₦|₨|₩|₪|₫|₭|₮|₯|₰|∞|∑)\B)|(?:(?!\d)\w)+\*?)"""
     if t.lexer.verbose:
-        t.type = reserved.get(t.value, 'UNIT')
+        if t.value in reserved:
+            t.type = reserved.get(t.value)
+        elif t.lexer.verbose:
+            try:
+                v = cardinal_to_number(t.value)
+                t.type = 'NUMBER'
+                t.value = v
+            except ValueError:
+                try:
+                    v = ordinal_to_number(t.value, fraction=True)
+                    t.type = 'ORDINAL'
+                    t.value = v
+                except ValueError:
+                    pass
     return t
 
 
 # A regular expression for numbers and ordinals
 def t_NUMBER(t):
     r"""(?P<number>[-+]?\d+(\.\d+)?)(?P<suffix>st|nd|rd|th)?"""
-    if t.lexer.lexmatch.group("suffix") and not t.lexer.verbose:
-        raise ValueError("line %d: Ordinals not allowed in this context (%s) " %
-                         (t.lineno, t.value))
+    if t.lexer.lexmatch.group("suffix"):
+        if t.lexer.verbose:
+            try:
+                t.value = float(t.lexer.lexmatch.group("number"))
+                t.type = 'ORDINAL'
+                return t
+            except ValueError:
+                raise UnitParseError(t.value, "number conversion failed", t.lineno)
+        else:
+            raise UnitParseError(t.value, "ordinals not allowed in this context", t.lineno)
     try:
         t.value = float(t.lexer.lexmatch.group("number"))
     except ValueError:
-        raise ValueError("line %d: Number conversion failed for %s " %
-                         (t.lineno, t.value))
+        raise UnitParseError(t.value, "number conversion failed", t.lineno)
     return t
 
 
@@ -1086,8 +1198,7 @@ t_ignore = " *\t"
 
 # Error handling rule
 def t_error(t):
-    raise SyntaxError("Illegal character '%s' in unit '%s'" %
-                      (t.value[0], t.lexer.lexdata))
+    raise UnitParseError(t.lexdata, "illegal character `%s'" % t.value[0], t.lineno)
 
 
 # Build the lexer
@@ -1159,7 +1270,7 @@ def p_expression1_verbose(p):
                    | expression1 SQUARED
                    | CUBIC expression1
                    | expression1 CUBED
-                   | expression1 TO THE exponent
+                   | expression1 TO THE verbose_exponent
     """
     if len(p) == 3:
         if p[1] == 'square':
@@ -1201,6 +1312,21 @@ def p_exponent(p):
         p[0] = p[1]
 
 
+def p_verbose_exponent(p):
+    """verbose_exponent : ORDINAL
+                        | NUMBER ORDINAL
+                        | NUMBER NUMDIV NUMBER
+                        | NUMBER NUMDIV ORDINAL
+                        | NUMBER OVER NUMBER
+    """
+    if len(p) == 4:
+        p[0] = mpmath.fraction(p[1], p[3])
+    elif len(p) == 3:
+        p[0] = mpmath.fraction(p[1], p[2])
+    else:
+        p[0] = p[1]
+
+
 def p_unit_exp(p):
     """unit_exp : unit NUMBER"""
     a = p[1][0]
@@ -1219,7 +1345,7 @@ def p_unit(p):
         if p[2] in variables:
             p[0] = (variables[p[2]], Unit({"'" + p[2] + "'": 1}))
         else:
-            raise ValueError("Unrecognized special unit '%s'" % p[2])
+            raise UnitParseError(p[2], "unrecognized special unit")
         return
     ku = isunit(p[1], p.parser.verbose)
     if ku:
@@ -1237,16 +1363,17 @@ def p_unit(p):
         else:
             p[0] = (k * u, Unit({p[1]: 1}))
     else:
-        raise ValueError("Unrecognized unit %s" % p[1])
+        raise UnitParseError(p[1], "unrecognized unit")
 
 
 def p_error(p):
+    value = p.value
     while 1:
-        tok = yacc.token()             # Get the next token
+        tok = unityacc.token()             # Get the next token
         if not tok:
             break
-    yacc.restart()
-    raise SyntaxError("unix syntax at '%s'" % p.value)
+    unityacc.restart()
+    raise UnitParseError(value, "syntax error")
 
 
 unityacc = yacc.yacc(write_tables=0, debug=0)
@@ -1266,8 +1393,7 @@ def newbaseunit(name, doc=""):
     baseunits.append(name)
     verbose_name = extract_name(doc) if doc else name
     verbose_units[verbose_name] = name
-    if inflect_engine:
-        verbose_units[inflect_engine.plural(verbose_name)] = name
+    verbose_units[plural(verbose_name)] = name
     cachedat = {}
 
 
@@ -1285,8 +1411,7 @@ def newbasecurrency(name, doc=""):
     baseunits.append(name)
     verbose_name = extract_name(doc) if doc else name
     verbose_units[verbose_name] = name
-    if inflect_engine:
-        verbose_units[inflect_engine.plural(verbose_name)] = name
+    verbose_units[plural(verbose_name)] = name
     cachedat = {}
 
 
@@ -1338,8 +1463,7 @@ def newunit(name, value, doc="", source=""):
     verbose_units[extract_name(doc) if doc else name] = name
     verbose_name = extract_name(doc) if doc else name
     verbose_units[verbose_name] = name
-    if inflect_engine:
-        verbose_units[inflect_engine.plural(verbose_name)] = name
+    verbose_units[plural(verbose_name)] = name
     cachedat = {}
 
 
@@ -1364,7 +1488,7 @@ def delsystem(name):
     del systems[name]
 
 
-isunit_re = re.compile("[A-Za-z]+")
+isunit_re = re.compile(unit_regex, re.UNICODE)
 
 
 def isunit(fullname, verbose=False):

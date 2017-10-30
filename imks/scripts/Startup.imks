@@ -11,9 +11,9 @@
 %newbaseunit mol # "Mole\n\nThe mole is the amount of substance of a system which contains as many\nelementary entities as there are atoms in 0.012 kilogram of carbon 12."
 %newbaseunit cd  # "Candle\n\nThe candela is the luminous intensity, in a given direction, of a source that\nemits monochromatic radiation of frequency 540 x 10^12 hertz and that has a\nradiant intensity in that direction of 1/683 watt per steradian."
 
-%newunit K=(0[K], 1[K]) # "Kelvin degree, basic unit of temperature.\n\nThe kelvin, unit of thermodynamic temperature, is the fraction 1/273.16 of the\nthermodynamic temperature of the triple point of water."
+%newunit K=(0[K], 1[K]) # "Kelvin\n\nThe kelvin, unit of thermodynamic temperature, is the fraction 1/273.16 of the\nthermodynamic temperature of the triple point of water."
 
-%newbasecurrency EUR # "Euro, basic unit of currency"
+%newbasecurrency EUR # "Euro"
 
 %newprefix Y=1e24   # "Yotta"
 %newprefix Z=1e21   # "Zetta"
