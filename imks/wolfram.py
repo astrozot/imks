@@ -9,7 +9,7 @@ except:
 import json
 import re
 
-from .units import Value
+from .units import Value, UnitParseError
 from .config import *
 
 namespace = None
@@ -41,6 +41,24 @@ def short_answer(query, verbose=False):
 
 
 def wolfram(query, verbose=False):
+    """Perform a full Wolfram Alpha query and return the main results.
+
+    This function queries Wolfram Alpha for a simple string and produces
+    an output according to the results. The output is converted into a
+    dimensional quantity (Value) if possible. Moreover, if several
+    independent outputs are returned by Wolfram Alpha, the function returns
+    a dictionary.
+
+    The function requires that app_id from this module is set. Additionally,
+    the user namespace, if available, is used to convert string representations
+    of numbers into quantities. If unavailable, the float function is used
+    instead.
+
+    Examples:
+        wolfram("earth mass")
+        wolfram("mean ocean depth")
+        wolfram("sun surface temperature")
+        """
     if namespace:
         engine = namespace.get(internals["engine"], float)
     else:
@@ -51,38 +69,61 @@ def wolfram(query, verbose=False):
     if verbose:
         print(url)
     response = request.urlopen(url, timeout=timeout).read()
-    result = json.loads(response.decode('utf-8').strip())
-    result = result['queryresult']
-    if result['success']:
-        if 'pods' not in result:
+    result = json.loads(response.decode("utf-8").strip())
+    result = result["queryresult"]
+    if result["success"]:
+        if "pods" not in result:
             return None
         out = {}
         for pod in result['pods']:
-            for subpod in pod['subpods']:
+            if verbose:
+                print("\n%s" % pod["title"])
+            for subpod in pod["subpods"]:
                 try:
-                    lines = subpod['plaintext'].replace(u"×10^", "e").splitlines()
+                    lines = subpod["plaintext"].replace(u"×10^", "e").splitlines()
                     for line in lines:
+                        if verbose:
+                            print(" ", line)
                         if '|' in line:
                             line = line.split("|")
                             key = line[0].strip()
                             value = line[1]
                         else:
-                            key = ''
+                            key = ""
                             value = line
-                        v = value.split('(')[0].strip()
+                        v = value.split('  ')[0].strip()
                         w = v.split()
                         try:
-                            v = Value(engine(w[0]), w[1], original=True)
-                        except ValueError:
+                            v = Value(engine(w[0]), " ".join(w[1:]), original=True)
+                        except (ValueError, UnitParseError):
                             pass
                         if key not in out:
-                            out[key] = v
-                except (KeyError, ValueError):
+                            out[key] = [v]
+                        else:
+                            out[key].append(v)
+                except KeyError:
                     pass
-        if out:
-            if len(out) == 1:
-                return list(out.values())[0]
+        new_out = {}
+        for k, vs in out.items():
+            # Now make sure all units found are equivalent
+            us = {}
+            for v in vs:
+                if isinstance(v, Value):
+                    u = tuple(v.unit.to_list())
+                    if u in us:
+                        us[u].append(v)
+                    else:
+                        us[u] = [v]
+            # Find out the version with the most identical units
+            best_len = 0
+            best_val = None
+            for u, v in us.items():
+                if len(v) > best_len:
+                    best_val = v[0]
+            new_out[k] = best_val
+        if new_out:
+            if len(new_out) == 1:
+                return list(new_out.values())[0]
             else:
-                return out
+                return new_out
     return None
-

@@ -1204,7 +1204,7 @@ t_ignore = " *\t"
 
 # Error handling rule
 def t_error(t):
-    raise UnitParseError(t.lexdata, "illegal character `%s'" % t.value[0], t.lineno)
+    raise UnitParseError(t.value[0], "illegal character", t.lineno)
 
 
 # Build the lexer
@@ -1240,6 +1240,7 @@ def p_expression(p):
 
 def p_expression1(p):
     """expression1 : expression1 POW exponent
+                   | expression1 POW LPAREN exponent RPAREN
                    | unit_exp
                    | expression1 expression1
                    | expression1 DOT expression1
@@ -1269,6 +1270,12 @@ def p_expression1(p):
         if isinstance(a, tuple):
             a = a[1]
         p[0] = (a ** p[3], p[1][1] * p[3])
+    else:
+        a = p[1][0]
+        if isinstance(a, tuple):
+            a = a[1]
+        p[0] = (a ** p[4], p[1][1] * p[4])
+
 
 
 def p_expression1_verbose(p):
@@ -1306,13 +1313,10 @@ def p_expression_group(p):
 
 
 def p_exponent(p):
-    """exponent : LPAREN NUMBER NUMDIV NUMBER RPAREN
-                | NUMBER NUMDIV NUMBER
+    """exponent : NUMBER NUMDIV NUMBER
                 | NUMBER
     """
-    if len(p) == 6:
-        p[0] = mpmath.fraction(p[2], p[4])
-    elif len(p) == 4:
+    if len(p) == 4:
         p[0] = mpmath.fraction(p[1], p[3])
     else:
         p[0] = p[1]
@@ -1378,7 +1382,7 @@ def p_unit(p):
 
 
 def p_error(p):
-    value = p.value
+    value = getattr(p, "value", "")
     while 1:
         tok = unityacc.token()             # Get the next token
         if not tok:
