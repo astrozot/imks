@@ -164,7 +164,7 @@ def imks_dict_completer(self, event):
 
 def imks_load_imks_ext(self, event):
     return ["constants", "currencies", "calendars", "geolocation", "jpl",
-            "wiki"]
+            "wiki", "wolfram"]
 
 
 def imks_imks_completer(self, event):

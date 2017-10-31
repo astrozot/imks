@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import re
 
 # TODO: try to remove inflect dependency
@@ -136,6 +138,8 @@ def ordinal_to_number(s, fraction=False):
             return 2
         if a[0] in ('quarter', 'quarters'):
             return 4
+        if a[0] in ('second', 'seconds'):
+            raise ValueError("Unknown ordinal: " + a[0])
     n = 0
     g = 0
     for w in a:

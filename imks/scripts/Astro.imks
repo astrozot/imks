@@ -5,11 +5,11 @@
 
 %newunit AU=au=149597870700[m]		    # "Astronomical Unit"
 %newunit ly=9460536207068016[m]         # "Light Year"
-%newunit pc=parsec=3600*180/pi*1[au]	# "Parsec"
-%newunit Jy=jansky=1e-26[W/m^2 Hz]      # "Jansky"
+%newunit pc=3600*180/pi*1[au]	        # "Parsec"
+%newunit Jy=1e-26[W/m^2 Hz]             # "Jansky"
 
-%let siderealyear=365.25636[day]        # "Sidereal year (quasar reference frame)"
-%let siderealday=86164.09054[s]         # "Mean sidereal day"
+%let siderealyear=365.25636[day]        # "Sidereal year"
+%let siderealday=86164.09054[s]         # "Sidereal day"
 
 %let Msun=1.98889e30[kg]                # "Mass of the Sun"
 %let Rsun=6.961e8[m]                    # "Radius of the Sun"

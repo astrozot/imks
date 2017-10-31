@@ -313,6 +313,7 @@ class ImksMagic(Magics):
                         geographical locations
           jpl           load planetary data from the SSD JPL database
           wiki          search through Wikipedia infoboxes
+          wolfram       use Wolfram Alpha to query quantities
         """
         import os, os.path
         global internals
@@ -362,6 +363,12 @@ class ImksMagic(Magics):
                     wiki.unit_transformer = unit_transformer
                     wiki.command_transformer = command_transformer
                     self.shell.user_ns["wiki"] = wiki.wiki
+                elif ext == "wolfram":
+                    from . import wolfram
+                    wolfram.namespace = ip.user_ns
+                    if "wolframalpha_id" in ip.user_ns:
+                        wolfram.app_id = ip.user_ns["wolframalpha_id"]
+                    self.shell.user_ns["wolfram"] = wolfram.wolfram
                 else:
                     internals["extensions"].discard(ext)
                     print("Unknown extension `%s'." % ext)
@@ -757,8 +764,10 @@ class ImksMagic(Magics):
           -a   Apropos mode: does search within documentation strings
           -y   Parsing mode: show how a prefix + unit is parsed
           -u   Search among units
+          -U   Search among verbose units
           -c   Search among currencies
           -p   Search among prefixes
+          -P   Search among verbose prefixes
           -s   Search among unit systems
           -t   Search among input transformers
           -f   Search among output formats
@@ -766,7 +775,7 @@ class ImksMagic(Magics):
           -i   For wildcard searches, ignore the case
         """
         global config
-        opts, name = self.parse_options(args, "ayupstfxci")
+        opts, name = self.parse_options(args, "ayuUpPstfxci")
         if name == "":
             self.shell.run_line_magic("imks", "-h")
             return
@@ -775,22 +784,28 @@ class ImksMagic(Magics):
         u1 = dict([(k, w) for k, w in units.units.items()
                    if k not in units.baseunits and k not in currencies.basecurrency
                    and k not in currencies.currencydict])
+        u2 = dict([(k, units.units[w]) for k, w in units.verbose_units.items()])
         c0 = dict([(k, w) for k, w in units.units.items()
                    if k in currencies.basecurrency])
         c1 = dict([(k, w) for k, w in units.units.items()
                    if k not in currencies.basecurrency
                    and k in currencies.currencydict])
+        p2 = dict([(k, units.prefixes[w]) for k, w in units.verbose_prefixes.items()])
         namespaces = []
         if 's' in opts:
             namespaces.append(("Unit systems", units.systems))
         if 'u' in opts:
             namespaces.extend([("Base units", u0),
                                ("Units", u1)])
+        if 'U' in opts:
+            namespaces.extend([("Verbose units", u2)])
         if 'c' in opts:
             namespaces.extend([("Base currencies", c0),
                                ("Currencies", c1)])
         if 'p' in opts:
             namespaces.append(("Prefixes", units.prefixes))
+        if 'P' in opts:
+            namespaces.extend([("Verbose prefixes", p2)])
         if 't' in opts:
             namespaces.append(("Input Transformers", config["intrans"]))
         if 'f' in opts:
@@ -800,8 +815,10 @@ class ImksMagic(Magics):
                           ("Base units", u0),
                           ("Base currencies", c0),
                           ("Units", u1),
+                          ("Verbose units", u2),
                           ("Currencies", c1),
                           ("Prefixes", units.prefixes),
+                          ("Verbose prefixes", p2),
                           ("Input Transformers", config["intrans"]),
                           ("Output Formats", units.formats)]
         if 'x' in opts:
@@ -825,7 +842,11 @@ class ImksMagic(Magics):
             if res:
                 print("%s parsed as prefix(%s) + unit(%s)" % (name, res[0], res[1]))
             else:
-                print("%s is not a valid unit with prefix")
+                res = units.isunit(name, verbose=True)
+                if res:
+                    print("%s parsed as prefix(%s) + unit(%s)" % (name, res[0], res[1]))
+                else:
+                    print("%s is not a valid unit with prefix")
             return
         if '*' in name:
             psearch = self.shell.inspector.psearch
@@ -867,7 +888,12 @@ class ImksMagic(Magics):
                 res = units.isunit(name)
                 if res:
                     print("%s parsed as prefix(%s) + unit(%s)" % (name, res[0], res[1]))
-                else: print("Object `%s` not found" % name)
+                else:
+                    res = units.isunit(name, verbose=True)
+                    if res:
+                        print("%s parsed as prefix(%s) + unit(%s)" % (name, res[0], res[1]))
+                    else:
+                        print("Object `%s` not found" % name)
         return
 
     @line_magic

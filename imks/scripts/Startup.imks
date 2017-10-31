@@ -42,103 +42,94 @@
 ## Now we have defined the default unit system, mks, and we can thus
 ## proceed with the definition of derived units and symbols.
 
-%newunit in=inch=2.54[cm]      	  	  # "Inch"
-%newunit ft=foot=12[in]			  # "Foot"
-%newunit yd=yard=3[ft]			  # "Yard"
-%newunit mi=mile=5280[ft]		  # "Mile"
+%newunit in=2.54[cm]      	  	  # "Inch"
+%newunit ft=12[in]  			  # "Foot"
+%newunit yd=3[ft]   			  # "Yard"
+%newunit mi=5280[ft]    		  # "Mile"
 %newunit nmi=1852[m]			  # "Nautical Mile"
-%newunit fath=fathom=6[ft]	          # "Fathom"
+%newunit fath=6[ft] 	          # "Fathom"
 %newunit micron=1[um]			  # "Micron"
 %newunit mil=1[in]/1000			  # "Mil"
 %newunit point=1[in]/72			  # "Point"
-%newunit Å=Ang=angstrom=1e-10[m]          # "Angstrom"
+%newunit Å=Ang=1e-10[m]           # "Angstrom"
 %newunit fermi=1e-15[m]			  # "Fermi"
 
 %newunit °C=Celsius=(273.15[K], 1[K])	  # "Celsius degree"
 %newunit °F=Fahrenheit=(459.67[K]*5/9, 5[K]/9)	  # "Fahrenheit degree"
 
-%newunit hect=hectare=10000[m^2]	  # "Hectare"
+%newunit hect=10000[m^2]	      # "Hectare"
 %newunit acre=1[mi^2] / 640		  # "Acre"
 %newunit barn=1e-28[m^2]		  # "Barn"
 
 %newunit l=liter=1e-3[m^3]		  # "Liter"
-%newunit tsp=4.92892159375[ml]		  # "Teaspoon"
+%newunit tsp=4.92892159375[ml]	  # "Teaspoon"
 %newunit tbsp=3[tsp]			  # "Tablespoon"
 %newunit ozfl=2[tbsp]			  # "Fluid Ounce"
 %newunit cup=8[ozfl]			  # "Cup"
-%newunit pt=2[cup]			  # "Pint"
-%newunit pint=1[pt]			  # "Pint"
-%newunit qt=2[pt]			  # "Quart"
-%newunit quart=1[qt]			  # "Quart"
-%newunit gal=gallon=4[qt]		  # "US Gallon"
+%newunit pt=2[cup]			      # "Pint"
+%newunit qt=2[pt]			      # "Quart"
+%newunit gal=4[qt]      		  # "US Gallon"
 
-%newunit second=1[s]			  # "Second"
-%newunit min=60[s]			  # "Minute"
+%newunit min=60[s]			      # "Minute"
 %newunit hr=h=hour=60[min]		  # "Hour"
-%newunit day=24[hr]			  # "Day"
+%newunit day=24[hr]			      # "Day"
 %newunit week=7[day]			  # "Week"
-%newunit yr=year=365.25[day]	  	  # "Julian year"
-%newunit Cy=36525[day]			  # "Julian century"
-%newunit Hz=1[s^-1]			  # "Hertz"
+%newunit yr=365.25[day]	  	      # "Year\n\nJulian year"
+%newunit Cy=36525[day]			  # "Century\n\nJulian century"
+%newunit Hz=1[s^-1]			      # "Hertz"
 
 %newunit mph=1[mi/hr]			  # "Miles per hour"
 %newunit kph=1[km/hr]			  # "Kilometers per hour"
 %newunit knot=1[nmi/hr]			  # "Knot"
 
-%newunit gram=1[g]			  # "Gram"
 %newunit oz=28.349523125[g]		  # "Ounce"
-%newunit lb=16[oz]			  # "Pound (mass)"
-%newunit pound=1[lb]			  # "Pound (mass)"
+%newunit lb=16[oz]			      # "Pound"
 %newunit carat=0.2[g]			  # "Carat"
 
 %newunit ga=9.80665[m/s^2]		  # "g acceleration"
 
-%newunit N=Newton=1[m kg/s^2]		# "Newton"
-%newunit dyn=dyne=1e-5[N]		# "Dyne"
+%newunit N=1[m kg/s^2]		      # "Newton"
+%newunit dyn=1e-5[N]    		  # "Dyne"
 
-%newunit J=Joule=1[N m]			# "Joule"
-%newunit erg=1e-7[J]			# "Erg"
-%newunit cal=4.1868[J]			# "International Table Calorie"
+%newunit J=1[N m]     			  # "Joule"
+%newunit erg=1e-7[J]			  # "Erg"
+%newunit cal=4.1868[J]			  # "International Table Calorie"
 
-%newunit W=watt=1[J/s]			# "Watt"
-%newunit hp=745.7[W]			# "Horsepower"
+%newunit W=1[J/s]   			  # "Watt"
+%newunit hp=745.7[W]			  # "Horsepower"
 
-%newunit Pa=pascal=1[N/m^2]		# "Pascal"
-%newunit bar=1e5[Pa]			# "Bar"
-%newunit psi=6894.75729317[Pa]		# "Pound per spare inch"
+%newunit Pa=1[N/m^2]              # "Pascal"
+%newunit bar=1e5[Pa]			  # "Bar"
+%newunit psi=6894.75729317[Pa]	  # "Pound per spare inch"
 
-%newunit P=0.1[Pa s]			# "Poise (viscosity)"
-%newunit St=1e-4[m^2/s]			# "Stokes (viscosity)"
-%newunit ampere=1[A]			# "Ampere"
-%newunit C=coulomb=1[A s]		# "Coulomb"
-%newunit V=volt=1[W/A]			# "Volt"
-%newunit Ω=ohm=1[V/A]			# "Ohm"
-%newunit S=siemens=1[A/V]		# "Siemens"
-%newunit F=farad=1[C/V]			# "Farad"
-%newunit Wb=weber=1[V s]		# "Weber"
-%newunit H=henry=1[Wb/A]		# "Henry"
-%newunit T=tesla=1[Wb/m^2]		# "Tesla"
-%newunit Gs=gauss=1e-4[T]		# "Gauss"
+%newunit P=0.1[Pa s]			# "Poise"
+%newunit St=1e-4[m^2/s]			# "Stokes"
+%newunit C=1[A s]       		# "Coulomb"
+%newunit V=1[W/A]   			# "Volt"
+%newunit Ω=1[V/A]   			# "Ohm"
+%newunit S=1[A/V]       		# "Siemens"
+%newunit F=1[C/V]   			# "Farad"
+%newunit Wb=1[V s]      		# "Weber"
+%newunit H=1[Wb/A]      		# "Henry"
+%newunit T=1[Wb/m^2]    		# "Tesla"
+%newunit Gs=1e-4[T]     		# "Gauss"
 
-%newunit candela=1[cd]			# "Candela"
-%newunit lm=lumen=4*pi*1[cd]		# "Lumen"
-%newunit lx=lux=1[lm/m^2]		# "Lux"
-%newunit ph=phot=1e4[lx]		# "Phot"
+%newunit lm=4*pi*1[cd]	    	# "Lumen"
+%newunit lx=1[lm/m^2]   		# "Lux"
+%newunit ph=1e4[lx]     		# "Phot"
 
-%newunit Bq=1[s^-1]			# "Becquerel (radioactivity)"
-%newunit Ci=curie=3.7e10[Bq]		# "Curie"
-
-%newunit mole=1[mol]			# "Mole"
+%newunit Bq=1[s^-1]		    	# "Becquerel"
+%newunit Ci=3.7e10[Bq]      	# "Curie"
 
 %newunit rad=1                          # "Radiant"
 %newunit °=deg=pi/180			# "Degree"
 %newunit arcmin=1[deg]/60		# "Arcminute"
-%newunit arcsec=1[arcmin]/60		# "Arcsecond"
+%newunit arcsec=1[arcmin]/60	# "Arcsecond"
 
 # Physical constants
 %load_imks_ext -s constants
-%newunit amu=u=const["atomic mass unit-kilogram relationship"] # "Atomic mass unit"
-%newunit atm=const["standard atmosphere"] # "Standard atmosphere at see level"
+%newunit u=const["atomic mass unit-kilogram relationship"] # "amu\n\nAtomic mass unit"
+%newunit atm=const["standard atmosphere"] # "Atmosphere\n\nStandard atmosphere at see level"
 %newunit torr=1[atm]/760		# "Torr"
 %let c=const["speed of light in vacuum"]
 %let G=const["Newtonian constant of gravitation"]
@@ -260,6 +251,7 @@ def showdms(x, latex=False, pretty=False):
 
 %load_imks Astro
 %load_imks_ext -s currencies
+%load_imks_ext -s wolfram
 
 %defaultsystem si
 

@@ -219,9 +219,10 @@ class Unit(ODict):
                 v *= user_ns[n[1:-1]] ** u
         return v
         
-    def show(self, latex=False, verbose=False):
+    def show(self, latex=False, verbose=False, singular=False):
         unit = []
         negpow = None
+        first = True
         if mp.prec < 53:
             lastprec = mp.prec
             mp.prec = 53
@@ -249,11 +250,13 @@ class Unit(ODict):
                             extract_name(units[iu[1]].__doc__) if iu[1] else ""
                         ])
                         space_like = iu[1] in space_units
+                        if first and not singular:   # First unit!
+                            base = plural(base)
                 if base.find(' ') >= 0 or base.find('^') >= 0 or \
                         base.find('/') >= 0:
                     base = '(' + base + ')'
             elif isinstance(n, tuple):
-                base = Unit(ODict(n)).show(latex=latex, verbose=verbose)
+                base = Unit(ODict(n)).show(latex=latex, verbose=verbose, singular=not first)
                 if len(n) > 1 or mpmath.chop(n[0][1] - 1) != 0:
                     base = '(' + base + ')'
                 else:
@@ -263,8 +266,11 @@ class Unit(ODict):
                 space_like = base == 'm'
                 if verbose:
                     base = extract_name(units[base].__doc__)
+                    if first:  # First unit!
+                        base = plural(base)
                 if latex:
                     base = r"\mathrm{%s}" % base
+            first = False
             base = ''.join(re.sub(r"\s*/\s*", "/", base))
             base = ''.join(re.sub(r"\s*\^\s*", "^", base))
             # if latex: base = r"\mathrm{%s}" % re.sub(r"\s+", "\,", base)
@@ -286,7 +292,7 @@ class Unit(ODict):
                         if negpow is None:
                             unit.append("inverse")
                         # FIXME: Multiple "per" in verbose unit
-                        elif negpow is False or True:
+                        elif negpow is False:
                             unit.append("per")
                         p = -p
                         negpow = True
@@ -1151,7 +1157,7 @@ def t_UNIT(t):
     if t.lexer.verbose:
         if t.value in reserved:
             t.type = reserved.get(t.value)
-        elif t.lexer.verbose:
+        else:
             try:
                 v = cardinal_to_number(t.value)
                 t.type = 'NUMBER'
@@ -1351,17 +1357,22 @@ def p_unit(p):
     if ku:
         k, u = ku
         if k:
-            k = prefixes[k]
+            k1 = prefixes[k]
         else:
-            k = 1
+            k1 = 1
         if u:
-            u = units[u]
+            u1 = units[u]
         else:
-            u = 1
-        if isinstance(u, tuple):
-            p[0] = ((u[0], k * u[1]), Unit({p[1]: 1}))
+            u1 = 1
+        # FIXME: toggle verbose output
+        if False:
+            new_name = p[1]
         else:
-            p[0] = (k * u, Unit({p[1]: 1}))
+            new_name = k + u
+        if isinstance(u1, tuple):
+            p[0] = ((u1[0], k1 * u1[1]), Unit({new_name: 1}))
+        else:
+            p[0] = (k1 * u1, Unit({new_name: 1}))
     else:
         raise UnitParseError(p[1], "unrecognized unit")
 
