@@ -19,8 +19,8 @@
 
 # CMB related quantities
 %let T_CMB = 2.725[K]                   # "CMB temperature"
-%lazy rho_CMB = pi^2/(c^2*15) * (k*T_CMB)^4/(hbar*c)^3 # "CMB energy density"
-%lazy n_CMB = 2*zeta(3)*(k*T_CMB)^3 / (pi^2*hbar^3*c^3) @ cm # "CMB number density"
+%lazy rho_CMB = pi^2/(c^2*15) * (k*T_CMB)^4 / (hbar*c)^3 # "CMB energy density"
+%lazy n_CMB = 2*1.2020569031596*(k*T_CMB)^3 / (pi^2*hbar^3*c^3) @ cm # "CMB number density"
 %lazy n_nu = (3.0/11.0) * n_CMB @ cm    # "Neutrino number density"
 %let T_nu = (4.0/11.0)^(1/3) * T_CMB    # "Neutrino temperature"
 

@@ -504,6 +504,7 @@ class Value(mpnumeric):
                 if u[0] == "*":
                     s.showprefix.extend(prefixes.keys())
                     u = u[1:]
+                # FIXME: This returns a unit even if it is a composed term, such as A/s
                 iu = isunit(u)
                 if iu and iu[1] == "":
                     s.showprefix.append(u)
@@ -642,6 +643,7 @@ class Value(mpnumeric):
             if callable(self.showunit):
                 return self.showunit(self, latex=latex, verbose=verbose)
             if self.absolute:
+                # FIXME: not good, we are showing a unit and parsing it again
                 at = self.showunit.show(verbose=False)
                 u0 = Value(0, at)
                 if not u0.absolute:
@@ -650,6 +652,7 @@ class Value(mpnumeric):
                 u1 = Value(1, at, absolute=True)
                 value = ((self - u0) / (u1 - u0)).value
             else:
+                # FIXME: not good, we are showing a unit and parsing it again
                 u0 = Value(1, self.showunit.show(verbose=False))
                 if u0.absolute:
                     tilde = mytilde
@@ -1149,7 +1152,7 @@ t_RPAREN  = r'\)'
 t_QUOTE   = r"\'"
 
 unit_regex = u"([^\\W\d]+(-[^\\W\\d]+)*|°\\w*|\\$|" + \
-             u"|".join([re.escape(v) for v in currency_symbols.values()]) + u")"
+             u"|".join([re.escape(_v_) for _v_ in currency_symbols.values()]) + u")"
 
 # A unit or a keyword in verbose mode
 @lex.TOKEN(unit_regex)

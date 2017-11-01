@@ -882,6 +882,7 @@ class ImksMagic(Magics):
                     if hasattr(obj, "__timestamp__"):
                         fields.append((spaces + "Timestamp",
                                        obj.__timestamp__ or "<no timestamp>"))
+                    # TODO: inspector not implement in shell.py
                     res.append(self.shell.inspector._format_fields(fields,13+len(spaces)))
                 page("\n\n".join(res))
             else:
