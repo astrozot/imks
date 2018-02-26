@@ -68,7 +68,6 @@ class UnitTestCase(unittest.TestCase):
                  ("sqrt(3[m]^2+16m^2)", "5.0[m]"),
                  ("(G*c)^(1/3)", "0.27147970608887[m^4/3 s^-1 kg^-1/3]"),
                  ("atan2(3km, 2[mi]) @ deg", "42.9859516735[deg]"),
-                 ("round(2834cm) @ cm", "2800.0[cm]"),
                  ("fraction(3m, 2s)", "1.5[m s^-1]")]
         for x1, x2 in tests:
             c1, v1, u1 = self.run_line(x1)

@@ -45,7 +45,8 @@ setup(name='imks',
           # next two lines should be
           # 'ProxyTypes;python_version<"3.0"',
           # 'objproxies;python_version>"3.0"'
-          'ProxyTypes'
+          # 'ProxyTypes'
+          'objproxies'
         ],
       extras_require = {
         'numpy': ['numpy'],

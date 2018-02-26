@@ -2,10 +2,14 @@
 
 from __future__ import absolute_import, division, print_function
 from collections import OrderedDict as ODict
+from fractions import Fraction
+import numpy as np
 from ply import lex, yacc
-import traceback, re, types, mpmath
-from mpmath import mpmathify, mp
+import traceback, re, types
 from mpmath.ctx_mp_python import mpnumeric
+
+from IPython.core.debugger import Pdb
+# Pdb().set_trace()
 
 try:
     basestring
@@ -13,6 +17,20 @@ except NameError:
     basestring = str
 
 from .spelling import *
+
+
+#####################################################################
+# Numerical service functions
+
+def almost_equal(x, y=0, eps=1e-7):
+    """Check if two numbers are almost equal."""
+    return abs(x - y) < eps
+
+
+def fraction(x, max_den=10000000):
+    """Convert a float into a fraction, with a given maximum denominator."""
+    f = Fraction(x).limit_denominator(max_den)
+    return f.numerator, f.denominator
 
 
 #####################################################################
@@ -43,7 +61,7 @@ class UnitCompatibilityError(UnitError):
     def __init__(self, u1, u2, where=None):
         self.u1 = u1
         self.u2 = u2
-        if where > 2:
+        if where and where > 2:
             self.fn = where
         else:
             self.fn = traceback.extract_stack()[-2][2]
@@ -58,9 +76,9 @@ class UnitCompatibilityError(UnitError):
 class UnitAbsoluteError(Exception):
     """Class for exceptions related to absolute units."""
     def __init__(self, a1, a2, where=None):
-        self.a1 = "absolute" if a1 else "relative"
-        self.a2 = "absolute" if a2 else "relative"
-        if where > 2:
+        self.a1 = "absolute" if a1 is not False else "relative"
+        self.a2 = "absolute" if a2 is not False else "relative"
+        if where and where > 2:
             self.fn = where
         else:
             self.fn = traceback.extract_stack()[-2][2]
@@ -133,53 +151,35 @@ class Doc(object):
         return x
 
 
-class Unit(ODict):
-    """A unit representation.
+#####################################################################
+# Main classes
 
-    Units are stored as ordered dictionaries where the key represent a simple
-    unit, and the value is the exponent.  Two representations are used:
+class UnitTree(tuple):
+    """A unit tree representation.
 
-    1. Keys can be simple integers, indicating the respective baseunit: this is the
-       normal form for units.
+    The general structure is
 
-    2. Keys can be tuples of the format ((u1, exp1), (u2, exp2), ...): this form is
-       used for unit transformations and is interpreted as (u1^exp1 u2^exp2 ...).
+    ((unit1, exponent1), (unit2, exponent2), ...)
+
+    where unit is either a string (i.e. a leaf of the parsing tree)
+    or a UnitTree itself. This second form allows one to represent
+    trees that contains parentheses: kg / (km/s)^2 would be represented
+    as
+
+    ((kg, 1), (((km, 1), (s, -1)), 2))
     """
+    def __new__(cls, *args, **kw):
+        """Overrides constructor for immutable type."""
+        return super(UnitTree, cls).__new__(cls, *args, **kw)
 
-    def __init__(self, *args, **kw):
-        if len(args) == 1 and isinstance(args[0], basestring):
-            unit = Unit()
-            if not re.match(r"^[ \t]*$", args[0]):
-                tmp = unit_parser(args[0])[0]
-                if isinstance(tmp, tuple):
-                    unit += tmp[1].unit
-                else:
-                    unit += tmp.unit
-            ODict.__init__(self, unit)
-        else:
-            ODict.__init__(self, *args, **kw)
-    
-    def to_list(self):
-        """Return a list representation of the unit.
-
-        This function should only be called for units stored in normal form.
-        """
-        r = [0] * len(baseunits)
-        for n, u in self.items():
-            r[n] = u
-        return r
-    
-    def to_tuple(self):
-        """Return a tuple representation of the unit.
-
-        This function should *not* be called for units stored in normal form.
-        """
-        return tuple(self.items())
+    @classmethod
+    def simple(cls, name, exp=1):
+        return cls(((name, exp),))
 
     def __bool__(self):
         """Check if a unit is zero, i.e. if it represent a pure number."""
-        for n, u in self.items():
-            if u != 0:
+        for u, e in self:
+            if bool(u) and e != 0:
                 return True
         return False
 
@@ -187,106 +187,103 @@ class Unit(ODict):
         """Python 2 compatibility method that calls __bool__."""
         return self.__bool__()
 
-    def __eq__(self, y):
-        s = set(self.keys()) | set(y.keys())
-        for n in s:
-            if self.get(n, 0) != y.get(n, 0):
-                return False
-        return True
+    def __neg__(self):
+        return UnitTree(((b, -e) for b, e in self))
 
-    def __ne__(self, y):
-        return not self.__eq__(y)
+    def __add__(self, t):
+        """Sum of units, i.e. product of quantities."""
+        return UnitTree(super(UnitTree, self).__add__(t))
 
-    def sort(self):
-        pos = []
-        neg = []
-        for u, n in self.items():
-            if n > 0:
-                pos.append((u, n))
-            elif n < 0:
-                neg.append((u, n))
-        return Unit(pos + neg)
+    def __sub__(self, t):
+        """Sum of units, i.e. product of quantities."""
+        return UnitTree(super(UnitTree, self).__add__(-t))
 
-    def get_value(self):
+    def __mul__(self, f):
+        """Multiplication of a unit, i.e. exponentiation."""
+        return UnitTree(((b, e*f) for b, e in self))
+
+    def to_value(self):
         global user_ns
-        v = Value(1.0)
-        for n, u in self.items():
-            if u == 0:
+        r = Value(1.0)
+        for u, e in self:
+            if e == 0:
                 continue
-            if isinstance(n, basestring):
-                if n[0] != "'" or n[-1] != "'":
-                    continue
-                v *= user_ns[n[1:-1]] ** u
-        return v
-        
+            if isinstance(u, UnitTree):
+                r = r * u.to_value() ** e
+            else:
+                if u[0] == '"':
+                    x = user_ns[u[1:-1]]
+                else:
+                    x = unit_parser(u)[0]
+                r = r * x ** e
+        return r
+
+    def remove_variable_units(self):
+        """Remove double quoted units.
+
+        Returns a tuple (f, u), where f is a scalar factor that represents the
+        deleted units, and u the new unit with double quotes removed as a
+        UnitTree.
+        """
+        global user_ns
+        variables = None
+        factor = 1
+        new_unit = []
+        for k, v in self:
+            if isinstance(k, UnitTree):
+                factor1, new_unit1 = k.remove_variable_units()
+                if new_unit1:
+                    new_unit.append((new_unit1, v))
+                factor *= factor1 ** v
+            elif k[0] == '"' == k[-1]:
+                factor *= user_ns[k[1:-1]] ** v
+            else:
+                new_unit.append((k, v))
+        return factor, UnitTree(new_unit)
+
     def show(self, latex=False, verbose=False, singular=False):
         unit = []
         negpow = None
         first = True
-        if mp.prec < 53:
-            lastprec = mp.prec
-            mp.prec = 53
-        else:
-            lastprec = False
-        for n, u in self.items():
+        for u, e in self:
             space_like = False
-            if u == 0:
+            if almost_equal(e):
                 continue
-            if isinstance(n, basestring):
-                if n[0] == '"' == n[-1]:
+            if isinstance(u, basestring):
+                if u[0] == '"' == u[-1]:
                     continue
                 if latex:
-                    if n[0] == n[-1] and n[0] == "'":
-                        base = r"\mathbf{%s}" % n[1:-1]
+                    if u[0] == "'" == u[-1]:
+                        base = r"\mathbf{%s}" % u[1:-1]
                     else:
-                        base = r"\mathrm{%s}" % n
+                        base = r"\mathrm{%s}" % u
                 else:
-                    if n[0] == "'" == n[-1] or not verbose:
-                        base = n
+                    if u[0] == "'" == u[-1] or not verbose:
+                        base = u
                     else:  # thus verbose and no quotes
-                        iu = isunit(n)
-                        base = "".join([
-                            extract_name(prefixes[iu[0]].__doc__) if iu[0] else "",
-                            extract_name(units[iu[1]].__doc__) if iu[1] else ""
-                        ])
+                        iu = isunit(u)
+                        base = (extract_name(prefixes[iu[0]].__doc__) if iu[0] else "") + \
+                               (extract_name(units[iu[1]].__doc__) if iu[1] else "")
                         space_like = iu[1] in space_units
                         if first and not singular:   # First unit!
                             base = plural(base)
                 if base.find(' ') >= 0 or base.find('^') >= 0 or \
                         base.find('/') >= 0:
                     base = '(' + base + ')'
-            elif isinstance(n, tuple):
-                base = Unit(ODict(n)).show(latex=latex, verbose=verbose, singular=not first)
-                if len(n) > 1 or mpmath.chop(n[0][1] - 1) != 0:
+            elif isinstance(u, UnitTree):
+                base = u.show(latex=latex, verbose=verbose, singular=not first)
+                if len(u) > 1 or e != 1:
                     base = '(' + base + ')'
-                else:
-                    space_like = isunit(n[0][0])[1] in space_units
-            else:
-                base = baseunits[n]
-                space_like = base == 'm'
-                if verbose:
-                    base = extract_name(units[base].__doc__)
-                    if first:  # First unit!
-                        base = plural(base)
-                if latex:
-                    base = r"\mathrm{%s}" % base
+                elif isinstance(u[0][0], basestring):
+                    space_like = isunit(u[0][0])[1] in space_units
+            # Ok, the base is not set; concentrate on the exponent
             first = False
-            base = ''.join(re.sub(r"\s*/\s*", "/", base))
-            base = ''.join(re.sub(r"\s*\^\s*", "^", base))
-            # if latex: base = r"\mathrm{%s}" % re.sub(r"\s+", "\,", base)
-            if mpmath.chop(u - 1) == 0:
+            if almost_equal(e, 1):
                 unit.append(base)
                 if negpow is None:
                     negpow = False
-            elif mpmath.chop(u) != 0:
-                pq = mpmath.pslq([-1, u], tol=1e-5)
-                if pq:
-                    p, q = pq
-                else:
-                    p, q = mpmath.pslq([-1, u], tol=1e-5, maxcoeff=10**20)
-                if q < 0:
-                    p = -p
-                    q = -q
+            else:
+                p, q = fraction(e)
                 if verbose:
                     if p < 0:
                         if negpow is None:
@@ -298,7 +295,7 @@ class Unit(ODict):
                         negpow = True
                     else:
                         negpow = False
-                    if mpmath.chop(abs(q) - 1) == 0:
+                    if almost_equal(q, 1):
                         if p == 1:
                             unit.append(base)
                         elif p == 2:
@@ -320,17 +317,15 @@ class Unit(ODict):
                         else:
                             unit.append("%s to the %d/%s" % (base, p, number_to_ordinal(q, short=True)))
                 elif latex:
-                    if mpmath.chop(abs(q) - 1) == 0:
+                    if almost_equal(q, 1):
                         unit.append("%s{}^{%d}" % (base, p))
                     else:
                         unit.append("%s{}^{%d/%d}" % (base, p, q))
                 else:
-                    if mpmath.chop(abs(q) - 1) == 0:
+                    if almost_equal(q, 1):
                         unit.append("%s^%d" % (base, p))
                     else:
                         unit.append("%s^%d/%d" % (base, p, q))
-        if lastprec:
-            mp.prec = lastprec
         if len(unit) == 0 or (len(unit) == 1 and not unit[0]):
             return ""
         elif len(unit) == 1 and unit[0][0] == '(' and unit[0][-1] == ')':
@@ -340,94 +335,127 @@ class Unit(ODict):
                 return r"\,".join(unit)
             else:
                 return " ".join(unit)
-            
-    def __str__(self):
-        return self.show(verbose=verbose)
-
-    def _repr_latex_(self):
-        return '$' + self.show(latex=True, verbose=verbose) + '$'
-
-    def __add__(self, y):
-        r = self.copy()
-        for n in y:
-            r[n] = r.get(n, 0) + y[n]
-        return r
-
-    def __sub__(self, y):
-        r = self.copy()
-        for n in y:
-            r[n] = r.get(n, 0) - y[n]
-        return r
-
-    def __mul__(self, y):
-        r = Unit()
-        for n, u in self.items():
-            r[n] = u * mpmathify(y)
-        return r
-
-    def __div__(self, y):
-        r = Unit()
-        for n, u in self.items():
-            r[n] = u / mpmathify(y)
-        return r
-
-    def __truediv__(self, y):
-        return self.__div__(y)
-
-    def __radd__(self, y):
-        return self.__add__(y)
-
-    def __rsub__(self, y):
-        return y.__sub__(self)
-    
-    def __rmul__(self, y):
-        return self.__mul__(y)
-
-    def __rdiv__(self, y):
-        return self.__mul__(1.0/y)
-
-    def __rtruediv__(self, y):
-        return self.__rdiv__(y)
 
 
-class Value(mpnumeric):
+class Unit(np.ndarray):
+    """A unit representation.
+
+    Units are stored as simple vectors of real numbers, where each element is
+    the exponent of the corresponding base unit. For example, if the base
+    units are 'm', 's', 'kg', the unit
+
+    [1, -2, 0]
+
+    would represent an acceleration [m/s^2].
+    """
+
     def __new__(cls, *args, **kw):
-        return object.__new__(cls)
-        
-    def __init__(self, value, unit=None, absolute=None, original=False):
-        if unit is None:
-            unit = {}
-        if isinstance(value, Value):
-            self.value = value.value
-            self.unit = value.unit
-            self.absolute = bool(value.absolute or absolute)
-            self.showunit = value.showunit
-            self.showprefix = value.showprefix
-            self.offset = value.offset
-        else:
-            self.value = value
-            self.unit = Unit()
-            self.absolute = bool(absolute)
-            self.showunit = None
-            self.showprefix = []
-            self.offset = 0
-        if isinstance(unit, basestring):
-            if not re.match(r"^[ \t]*$", unit): 
-                tmp, uparse = unit_parser(unit)
+        shape = len(baseunits)
+        obj = np.zeros(shape).view(cls)
+        if len(args) == 0:
+            return obj
+        if len(args) == 1 and isinstance(args[0], basestring):
+            if not re.match(r"^[ \t]*$", args[0]):
+                tmp = unit_parser(args[0])[0]
                 if isinstance(tmp, tuple):
-                    self.value *= tmp[1].value
-                    if absolute is None or self.absolute:
-                        self.value += tmp[0].value
-                        self.absolute = True
-                    self.offset = tmp[0].value
-                    self.unit += tmp[1].unit
+                    obj += tmp[1].unit
                 else:
-                    self.value *= tmp.value
-                    self.unit += tmp.unit
-                if original:
-                    self.showunit = Unit({uparse.to_tuple(): 1.0})
+                    obj += tmp.unit
+        elif len(args) == 1 and isinstance(args[0], np.ndarray):
+            np.copyto(obj, args[0])
         else:
-            self.unit += Unit(unit)
+            tmp = np.array(*args)
+            np.copyto(obj, tmp)
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+
+    def show(self, *args, **kwargs):
+        l = tuple((baseunits[n], e) for n, e in enumerate(self) if e != 0)
+        return UnitTree(l).show(*args, **kwargs)
+
+    def __bool__(self):
+        """Check if a unit is non zero, i.e. if it represents a non-pure number."""
+        return np.asscalar(np.any(self))
+
+    def __eq__(self, obj):
+        return not bool(self - obj)
+
+    def __ne__(self, obj):
+        return bool(self - obj)
+
+    def __nonzero__(self):
+        """Python 2 compatibility method that calls __bool__."""
+        return self.__bool__()
+
+    def __str__(self):
+        unit = []
+        for n, e in enumerate(self):
+            if not almost_equal(e, 0):
+                s = baseunits[n]
+                if not almost_equal(e, 1):
+                    s += "^%g" % e
+                unit.append(s)
+        return "[" + " ".join(unit) + "]"
+
+
+class Value(np.ndarray):
+
+    def __new__(cls, input, unit=None, **kw):
+        """
+
+        :param input:
+        :param unit:
+        :param absolute:
+        :param original:
+        :return:
+        """
+        obj = np.asanyarray(input).view(cls)
+        # add the new attributes to the instance
+        if unit is None:
+            unit = getattr(input, "unit", Unit())
+        absolute = kw.get("absolute", getattr(input, "absolute", False))
+        original = kw.get("original", False)
+        showunit = kw.get("showunit", getattr(input, "showunit", None))
+        showprefix = kw.get("showprefix", getattr(input, "showprefix", None))
+        if not isinstance(unit, Unit):
+            if isinstance(unit, np.ndarray):
+                unit = Unit(unit)
+            elif isinstance(unit, basestring):
+                if not re.match(r"^[ \t]*$", unit):
+                    value, tree = unit_parser(unit)
+                    obj *= value.view(np.ndarray)
+                    unit = value.unit
+                    absolute = kw.get("absolute", value.absolute)
+                    if original:
+                        showunit = tree
+        obj.unit = unit
+        obj.absolute = absolute
+        obj.showunit = showunit
+        obj.showprefix = showprefix
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.unit = getattr(obj, 'unit', Unit())
+        self.absolute = getattr(obj, 'absolute', False)
+        self.showunit = getattr(obj, 'showunit', None)
+
+    @property
+    def value(self):
+        return np.asarray(self)
+
+    @value.setter
+    def value(self, x):
+        np.copyto(self, x)
+
+    def __array_prepare__(self, array, context=None):
+        # FIXME: Implement using context = [ufunc, *args, 0?]
+        results = super(Value, self).__array_prepare__(array, context)
+        return results
 
     def check_units(self, y, where=None):
         global tolerant
@@ -452,39 +480,20 @@ class Value(mpnumeric):
             raise UnitCompatibilityError(unit, Unit())
         return value
 
-    def remove_variable_units(self):
-        """Remove double quoted units from the showunit part of a Value.
-
-        This generally will also change the value.
-        """
-        global user_ns
-        variables = None
-        f = Value(1)
-        newshowunit = Unit()
-        for k, v in self.showunit.items():
-            if k[0] == '"' and k[-1] == '"':
-                if variables is None:
-                    variables = user_ns
-                f *= variables[k[1:-1]] ** v
-            else:
-                newshowunit[k] = v
-        r = self / f
-        r.showunit = newshowunit
-        r.showprefix = self.showprefix
-        r.absolute = self.absolute
-        r.offset = self.offset / f
-        return r
-
     def set_units(self, us):
         """Return a new Value with a different default display unit."""
+        # FIXME: put in ParseUnit; use functools.lru_cache instead of cachedat
         global cachedat, sortunits, formats, user_ns
-        nunits = 0
-        nvalues = 0
+        # Pdb().set_trace()
+        nunits = 0   # num. of units in us
+        nvalues = 0  # num. of value'd units in us
         s = Value(self)
         s.showprefix = []
+        # If us is just a single format, use it and return
         if len(us) == 1 and us[0] in formats:
             s.showunit = formats[us[0]]
             return s
+        # Filter all non-units parts of us, leaving only real units
         oldus = us
         us = []
         for u in oldus:
@@ -511,25 +520,23 @@ class Value(mpnumeric):
                 else:
                     nunits += 1
                     us.append(u)
+        # Now us contains units or values and no naked prefixes
         us = tuple(us)
         oldus = us
         try:
-            m, newus, newvs = cachedat[tuple(us)]
+            m, newus, newvs = cachedat[us]
         except KeyError:
-            us = []
-            vs = []
+            # Split units and values
+            us = []  # list of units, as UnitTree's
+            vs = []  # list of values, w/o quotes
             for u in oldus:
                 if u[0] in ("'", '"') and u[0] == u[-1]:
-                    us.append(u)
+                    us.append(UnitTree.simple(u))
                     vs.append(user_ns[u[1:-1]])
                 else:
                     up = unit_parser(u)
                     us.append(up[1])
-                    # Take care of absolute units
-                    if isinstance(up[0], tuple):
-                        vs.append(up[0][1])
-                    else:
-                        vs.append(up[0])
+                    vs.append(up[0])
             try:
                 if len(us) == 1 and not bool(self.unit) and \
                         not bool(vs[0].unit):
@@ -541,28 +548,27 @@ class Value(mpnumeric):
             if len(us) == 0:
                 maxrank = True
             elif len(us) <= len(baseunits):
-                m = mpmath.matrix([v.unit.to_list() for v in vs])
-                if abs(mpmath.det(m * m.transpose())) > mpmath.mp.eps:
+                m = np.array([v.unit for v in vs])
+                if abs(np.linalg.det(np.dot(m, m.T))) > 1e-7:
                     maxrank = True
             if maxrank:
-                us = us + [Unit(ODict([(u, 1)])) for u in baseunits]
-                vs = vs + [Value(1, Unit(ODict([(n, 1)])))
-                           for n, _ in enumerate(baseunits)]
-                newus = []
-                newvs = []
+                newus = us
+                newvs = vs
+                us = [UnitTree.simple(u) for u in baseunits]
+                vs = [units[baseunits[n]] for n, _ in enumerate(baseunits)]
                 n = 0
                 while len(newus) < len(baseunits):
-                    m = mpmath.matrix([v.unit.to_list() for v in newvs + [vs[n]]])
-                    if abs(mpmath.det(m * m.transpose())) > mpmath.mp.eps:
+                    m = np.array([v.unit for v in newvs + [vs[n]]])
+                    if abs(np.linalg.det(np.dot(m, m.T))) > 1e-7:
                         newus.append(us[n])
                         newvs.append(vs[n])
-                    n = n + 1
-                m = mpmath.matrix([v.unit.to_list() for v in newvs])
+                    n += 1
+                m = np.array([v.unit for v in newvs])
                 cachedat[tuple(oldus)] = (m, newus, newvs)
             else:
                 # Check if we are requested a particular unit in a natural system
                 if nunits == 1 and nvalues > 0 and not isinstance(us[0], basestring):
-                    tmp = Value(1, oldus[0]).set_units([oldus[0]])
+                    tmp = Value(1.0, oldus[0].replace('"', "'")).set_units([oldus[0]])
                     out = (self / tmp).set_units(oldus[1:])
                     out.showunit += tmp.showunit
                     out.unit += tmp.unit
@@ -573,8 +579,7 @@ class Value(mpnumeric):
                     s.showunit = None
                     return s
                 # General simple case
-                newuvs = zip([u if isinstance(u, basestring) else u.to_tuple()
-                              for u in us], vs)
+                newuvs = zip(us, vs)
                 uvs = ODict(newuvs)
                 res = None
                 for l in range(len(uvs)):
@@ -586,54 +591,55 @@ class Value(mpnumeric):
                         pass
                 if res:
                     if sortunits:
-                        s.showunit = res.sort()
+                        s.showunit = UnitTree(sorted(res, key=lambda x: x[1] < 0))
                     else:
                         s.showunit = res
                 else:
                     s.showunit = None
-                return s.remove_variable_units()
-        r = mpmath.lu_solve(m.transpose(), mpmath.matrix(s.unit.to_list()))
-        uvs = Unit(ODict([(u if isinstance(u, basestring) else u.to_tuple(), v)
-                         for u, v in zip(newus, r.transpose().tolist()[0])]))
+                # FIXME: remove_variable_units now has a different interface!
+                # return s.remove_variable_units()
+                return s
+        r = np.linalg.solve(m.T, np.array(s.unit))
+        uvs = sum((u*e for u,e in zip(newus, r)), UnitTree())
         if sortunits:
-            s.showunit = uvs.sort()
+            s.showunit = UnitTree(sorted(uvs, key=lambda x: x[1] < 0))
         else:
             s.showunit = uvs
-        return s.remove_variable_units()
+        # FIXME: remove_variable_units now has a different interface!
+        # return s.remove_variable_units()
+        return s
 
     def find_compatible(self, d=None, level=1):
+        # Fixme: goes to Unit
         import itertools
         if d is None:
             d = units
         if level == 0:
             for k, v in d.items():
-                if isinstance(v, Value) and v.unit == self.unit and \
-                        abs(v - self).value == 0:
+                if isinstance(v, Value) and v.unit == self.unit:
                     yield k
         else:
             ks = d.keys()
-            u0 = mpmath.matrix(self.unit.to_list())
+            u0 = np.array(self.unit)
             for c in itertools.combinations(ks, abs(level)):
                 js = []
-                mat = mpmath.matrix(len(baseunits), abs(level))
+                mat = np.zeros(shape=(len(baseunits), abs(level)))
                 for l, cu in enumerate(c):
                     if isinstance(d[cu], tuple):
-                        u = d[cu][0].unit.to_list()
+                        u = d[cu][0].unit
                     else:
-                        u = d[cu].unit.to_list()
+                        u = d[cu].unit
                     js.append(cu)
-                    mat[:, l] = mpmath.matrix(u)
+                    mat[:, l] = np.array(u)
                 try:
                     if level > 0:
-                        x = mpmath.lu_solve(mat, u0)
+                        x, residuals, rank, sv = np.linalg.lstsq(mat, u0)
                     else:
-                        x = mpmath.ones(abs(level), 1)
-                    r = mpmath.norm(mat * x - u0)
+                        x = np.ones(abs(level), 1)
                 except ValueError:
                     continue
-                if r < mpmath.eps and min(map(abs, x)) > 1e-5:
-                    u = Unit(ODict(zip(js, x)))
-                    yield u
+                if np.sum(residuals) < 1e-7 and min(map(abs, x)) > 1e-5:
+                    yield sum((u * e for u, e in zip(js, x)), UnitTree())
 
     def show(self, latex=False, verbose=False):
         global defaultsystem
@@ -642,37 +648,30 @@ class Value(mpnumeric):
         if self.showunit is not None:
             if callable(self.showunit):
                 return self.showunit(self, latex=latex, verbose=verbose)
-            if self.absolute:
-                # FIXME: not good, we are showing a unit and parsing it again
-                at = self.showunit.show(verbose=False)
-                u0 = Value(0, at)
-                if not u0.absolute:
-                    tilde = mytilde
-                    u0 = ~u0
-                u1 = Value(1, at, absolute=True)
-                value = ((self - u0) / (u1 - u0)).value
+            if self.absolute is not False:
+                u0 = self.showunit.to_value()
+                if u0.absolute is not False:
+                    value = (self.value + self.absolute) / u0.value - u0.absolute
+                else:
+                    value = self.value / u0.value
             else:
-                # FIXME: not good, we are showing a unit and parsing it again
-                u0 = Value(1, self.showunit.show(verbose=False))
-                if u0.absolute:
+                u0 = self.showunit.to_value()
+                if u0.absolute is not False:
                     tilde = mytilde
-                    u0 = ~u0
-                value = (self / u0).value
+                    u0.absolute = False
+                value = self.value / u0.value
             unit = self.showunit
         elif defaultsystem and self.unit:
             return Value(self).set_units(defaultsystem.args).show(latex=latex, verbose=verbose)
         else:
             value = self.value
             unit = self.unit
-            u0 = Value(0, self.unit.show(verbose=False))
-            if u0.absolute ^ self.absolute:
-                tilde = mytilde
         if self.showprefix:
             myunit = None
             myexp = 1  # This is redundant, but avoids an inspection warning
-            for u, e in unit.items():
-                if len(u) == 1 and u[0][1] == 1 and e != 0:
-                    myunit = u[0][0]
+            for u, e in unit:
+                if isinstance(u, basestring) and e != 0:
+                    myunit = u
                     myexp = e
                     break
             if myunit is not None:
@@ -683,7 +682,7 @@ class Value(mpnumeric):
                 myunit = "" if prefixonly else "*"
                 myexp = 1
                 fprefix = ""
-                unit = Unit([(((myunit, 1),), 1)])
+                unit = UnitTree.simple(myunit)
             avalue = abs(value)
             dexes = [(k, avalue / prefixes[k] ** myexp)
                      for k in self.showprefix
@@ -696,9 +695,9 @@ class Value(mpnumeric):
             dex, best = min(dexes, key=lambda x: x[1])
             if dex:
                 value = value / prefixes[dex] ** myexp
-            unit = Unit([(k, v) if k != ((myunit, 1),) else
-                         (((dex + myunit[len(fprefix):], 1),), v)
-                         for k, v in unit.items()])
+            unit = UnitTree(((k, v) if k != myunit else
+                             (dex + myunit[len(fprefix):], v)
+                             for k, v in unit))
         u = unit.show(latex=latex, verbose=verbose)
         if u:
             u = "[" + u + "]"
@@ -746,7 +745,7 @@ class Value(mpnumeric):
         if not isinstance(y, Value):
             y = Value(y)
         unit = self.check_units(y)
-        if self.absolute and y.absolute:
+        if self.absolute is not False and y.absolute is not False:
             raise UnitAbsoluteError(self.absolute, y.absolute)
         return Value(self.value + y.value, unit,
                      absolute=self.absolute or y.absolute)
@@ -755,20 +754,31 @@ class Value(mpnumeric):
         if not isinstance(y, Value):
             y = Value(y)
         unit = self.check_units(y)
-        if not self.absolute and y.absolute:
+        offset = (self.absolute or 0.0) - (y.absolute or 0.0)
+        absolute = int(self.absolute is not False) - int(y.absolute is not False)
+        if absolute < 0:
             raise UnitAbsoluteError(self.absolute, y.absolute)
-        return Value(self.value - y.value, unit,
-                     absolute=self.absolute and not y.absolute)
+        if absolute:
+            return Value(self.value - y.value, unit, absolute=offset)
+        else:
+            return Value(self.value - y.value + offset, unit)
     
     def __mul__(self, y):
         if not isinstance(y, Value):
             y = Value(y)
-        return Value(self.value * y.value, self.unit + y.unit)
+        absolute = False
+        if self.absolute is not None and not bool(y.unit):
+            absolute = self.absolute
+        elif y.absolute is not None and not bool(self.unit):
+            absolute = y.absolute
+        return Value(self.value * y.value, self.unit + y.unit, absolute=absolute)
 
     def __div__(self, y):
         if not isinstance(y, Value):
             y = Value(y)
-        return Value(self.value / y.value, self.unit - y.unit)
+        if self.absolute is not None and not bool(y.unit):
+            absolute = self.absolute
+        return Value(self.value / y.value, self.unit - y.unit, absolute=absolute)
 
     def __truediv__(self, y):
         if not isinstance(y, Value):
@@ -784,17 +794,19 @@ class Value(mpnumeric):
         if not isinstance(y, Value):
             y = Value(y)
         unit = self.unit - y.unit
-        d, m = divmod(self.value, y.value)
+        d, m = np.divmod(self.value, y.value)
         return Value(d, unit), Value(m, unit)
 
     def __pow__(self, y, modulo=None):
         if not isinstance(y, Value):
             y = Value(y)
         yvalue = y.check_pure()
-        return Value(pow(self.value, yvalue, modulo), self.unit * yvalue)
+        if y == 1:
+            return self
+        return Value(np.power(self.value, yvalue, modulo), self.unit * yvalue)
 
     def __round__(self, n=None):
-        return Value(round(self.value, n), self.unit, absolute=self.absolute)
+        return Value(np.round(self.value, n), self.unit, absolute=self.absolute)
 
     def __and__(self, y):
         if isinstance(y, Doc):
@@ -865,10 +877,14 @@ class Value(mpnumeric):
         if not isinstance(y, Value):
             y = Value(y)
         unit = self.check_units(y)
-        if not self.absolute and y.absolute:
-            raise UnitAbsoluteError(self.absolute, y.absolute)
-        return Value(y.value - self.value, unit,
-                     absolute=y.absolute and not self.absolute)
+        offset = (y.absolute or 0.0) - (self.absolute or 0.0)
+        absolute = int(y.absolute is not False) - int(self.absolute is not False)
+        if absolute < 0:
+            raise UnitAbsoluteError(y.absolute, self.absolute)
+        if absolute:
+            return Value(y.value - self.value, unit, absolute=offset)
+        else:
+            return Value(y.value - self.value + offset, unit)
 
     __rmul__ = __mul__
 
@@ -893,14 +909,14 @@ class Value(mpnumeric):
         if not isinstance(y, Value):
             y = Value(y)
         unit = y.unit - self.unit
-        d, m = divmod(y.value, self.value)
+        d, m = np.divmod(y.value, self.value)
         return Value(d, unit), Value(m, unit)
 
     def __rpow__(self, y):
         value = self.check_pure()
         if not isinstance(y, Value):
             y = Value(y)
-        return Value(pow(y.value, value), y.unit * value)
+        return Value(np.power(y.value, value), y.unit * value)
 
     __rand__ = __and__
 
@@ -914,8 +930,8 @@ class Value(mpnumeric):
         return self
 
     def __neg__(self):
-        if self.absolute:
-            return Value(self.offset*2 - self.value, self.unit, absolute=True)
+        if self.absolute is not False:
+            return Value(-self.value, self.unit, absolute=-self.absolute)
         else:
             return Value(-self.value, self.unit)
 
@@ -923,10 +939,10 @@ class Value(mpnumeric):
         return Value(abs(self.value), self.unit)
 
     def __invert__(self):
-        if self.absolute:
-            return Value(self.value - self.offset, self.unit, absolute=False)
+        if self.absolute is not False:
+            return Value(self.value + self.absolute, self.unit)
         else:
-            return Value(self.value + self.offset, self.unit, absolute=True)
+            return Value(self.value, self.unit, absolute=0)
 
     def __int__(self):
         return int(self.check_pure())
@@ -951,6 +967,7 @@ class Value(mpnumeric):
         return complex(self.check_pure())
 
     def _mpmath_(self, prec, rounding):
+        from mpmath import mpmathify
         return mpmathify(self.check_pure())
 
     def __oct__(self):
@@ -1131,8 +1148,9 @@ reserved = {
 # List of token names.   This is always required
 tokens = (
     'UNIT',
-    'NUMBER',
+    'NUMERAL',
     'ORDINAL',
+    'FLOAT',
     'NUMDIV',
     'UNITDIV',
     'POW',
@@ -1175,25 +1193,33 @@ def t_UNIT(t):
     return t
 
 
-# A regular expression for numbers and ordinals
-def t_NUMBER(t):
-    r"""(?P<number>[-+]?\d+(\.\d+)?)(?P<suffix>st|nd|rd|th)?"""
-    if t.lexer.lexmatch.group("suffix"):
-        if t.lexer.verbose:
-            try:
-                t.value = float(t.lexer.lexmatch.group("number"))
-                t.type = 'ORDINAL'
-                return t
-            except ValueError:
-                raise UnitParseError(t.value, "number conversion failed", t.lineno)
-        else:
-            raise UnitParseError(t.value, "ordinals not allowed in this context", t.lineno)
+def t_ORDINAL(t):
+    r"""(?P<number>[-+]?\d+)(?P<suffix>st|nd|rd|th)"""
+    if t.lexer.verbose:
+        try:
+            t.value = Fraction(int(t.lexer.lexmatch.group("number")), 1) * 1.0
+            return t
+        except ValueError:
+            raise UnitParseError(t.value, "number conversion failed", t.lineno)
+    else:
+        raise UnitParseError(t.value, "ordinals not allowed in this context", t.lineno)
+
+def t_FLOAT(t):
+    r"""[-+]?\d+\.\d+"""
     try:
-        t.value = float(t.lexer.lexmatch.group("number"))
+        t.value = float(t.value)
     except ValueError:
         raise UnitParseError(t.value, "number conversion failed", t.lineno)
     return t
 
+# A regular expression for numbers and ordinals
+def t_NUMERAL(t):
+    r"""([-+]?\d+)"""
+    try:
+        t.value = Fraction(int(t.value), 1) * 1.0
+    except ValueError:
+        raise UnitParseError(t.value, "number conversion failed", t.lineno)
+    return t
 
 # Define a rule so we can track line numbers
 def t_newline(t):
@@ -1267,7 +1293,7 @@ def p_expression1(p):
             a = a[1]
         if isinstance(b, tuple):
             b = b[1]
-        p[0] = (a * b, p[1][1] + p[3][1])        
+        p[0] = (a * b, p[1][1] + p[3][1])
     elif len(p) == 4 and p[2] == '^':
         a = p[1][0]
         if isinstance(a, tuple):
@@ -1316,32 +1342,37 @@ def p_expression_group(p):
 
 
 def p_exponent(p):
-    """exponent : NUMBER NUMDIV NUMBER
-                | NUMBER
+    """exponent : NUMERAL NUMDIV NUMERAL
+                | NUMERAL
+                | FLOAT
     """
     if len(p) == 4:
-        p[0] = mpmath.fraction(p[1], p[3])
+        # p[0] = Fraction(p[1], p[3])
+        p[0] = p[1] / p[3]
     else:
         p[0] = p[1]
 
 
 def p_verbose_exponent(p):
     """verbose_exponent : ORDINAL
-                        | NUMBER ORDINAL
-                        | NUMBER NUMDIV NUMBER
-                        | NUMBER NUMDIV ORDINAL
-                        | NUMBER OVER NUMBER
+                        | NUMERAL ORDINAL
+                        | NUMERAL NUMDIV NUMERAL
+                        | NUMERAL NUMDIV ORDINAL
+                        | NUMERAL OVER NUMERAL
     """
     if len(p) == 4:
-        p[0] = mpmath.fraction(p[1], p[3])
+        # p[0] = Fraction(p[1], p[3])
+        p[0] = p[1] / p[3]
     elif len(p) == 3:
-        p[0] = mpmath.fraction(p[1], p[2])
+        # p[0] = Fraction(p[1], p[2])
+        p[0] = p[1] / p[2]
     else:
         p[0] = p[1]
 
 
 def p_unit_exp(p):
-    """unit_exp : unit NUMBER"""
+    """unit_exp : unit NUMERAL
+                | unit FLOAT"""
     a = p[1][0]
     if isinstance(a, tuple):
         a = a[1]
@@ -1356,7 +1387,7 @@ def p_unit(p):
     if p[1] == "'":
         variables = user_ns
         if p[2] in variables:
-            p[0] = (variables[p[2]], Unit({"'" + p[2] + "'": 1}))
+            p[0] = (variables[p[2]], UnitTree.simple("'" + p[2] + "'"))
         else:
             raise UnitParseError(p[2], "unrecognized special unit")
         return
@@ -1376,10 +1407,7 @@ def p_unit(p):
             new_name = p[1]
         else:
             new_name = k + u
-        if isinstance(u1, tuple):
-            p[0] = ((u1[0], k1 * u1[1]), Unit({new_name: 1}))
-        else:
-            p[0] = (k1 * u1, Unit({new_name: 1}))
+        p[0] = (k1 * u1, UnitTree.simple(new_name))
     else:
         raise UnitParseError(p[1], "unrecognized unit")
 
@@ -1405,32 +1433,31 @@ def newbaseunit(name, doc=""):
     global baseunits, units, cachedat
     if name in baseunits:
         raise ValueError("Base unit %s already defined" % name)
-    v = Value(1, {len(baseunits): 1})
+    baseunits.append(name)
+    n_bases = len(baseunits)
+    u = np.zeros(n_bases)
+    u[-1] = 1
+    v = Value(1.0, Unit(u))
     v.__doc__ = doc
     units[name] = v
-    baseunits.append(name)
     verbose_name = extract_name(doc) if doc else name
     verbose_units[verbose_name] = name
     verbose_units[plural(verbose_name)] = name
+    # Fix all other units
+    for k,u in units.items():
+        uu = u.unit
+        units[k].unit = Unit(np.hstack((uu, np.zeros(n_bases - len(uu)))))
+    for k,u in prefixes.items():
+        uu = u.unit
+        prefixes[k].unit = Unit(np.hstack((uu, np.zeros(n_bases - len(uu)))))
     cachedat = {}
 
 
 def newbasecurrency(name, doc=""):
     global cachedat
     from . import currencies
-    if name in baseunits:
-        raise ValueError("base unit %s already known" % name)
-    if currencies.basecurrency is not None:
-        raise ValueError("base currency already defined (%s)", currencies.basecurrency)
     currencies.basecurrency = name
-    v = Value(1, {len(baseunits): 1})
-    v.__doc__ = doc
-    units[name] = v
-    baseunits.append(name)
-    verbose_name = extract_name(doc) if doc else name
-    verbose_units[verbose_name] = name
-    verbose_units[plural(verbose_name)] = name
-    cachedat = {}
+    newbaseunit(name, doc)
 
 
 def newprefix(name, value, doc="", source=""):
@@ -1466,14 +1493,13 @@ def newunit(name, value, doc="", source=""):
         if isinstance(value, tuple):
             if len(value) != 2:
                 raise ValueError("The absolute unit `%s` is not a 2-tuple" % name)
-            v = (Value(value[0]), Value(value[1]))
-            v[0].check_units(value[1])
-            if name == "m" or v[0].unit == units["m"].unit:
-                space_units.append(name)
+            z, v = Value(value[0]), Value(value[1])
+            v.check_units(z)
+            v.absolute = z.value
         else:
             v = Value(value)
-            if name == "m" or v.unit == units["m"].unit:
-                space_units.append(name)
+        if name == "m" or v.unit == units["m"].unit:
+            space_units.append(name)
     v = v & Doc(doc)
     if source:
         v.__source__ = source
@@ -1586,7 +1612,7 @@ systems = ODict()
 formats = ODict()
 defaultsystem = None
 cachedat = {}
-newprefix("", 1)
+newprefix('', Value(1.0))
 user_ns = {}
 
 
@@ -1604,6 +1630,8 @@ def load_variables(namespace):
     namespace['formats'] = formats
     namespace['defaultsystem'] = defaultsystem
     namespace['verbose'] = lambda x: x.show(verbose=True)
+    # TODO: remove next line
+    namespace['parser'] = unit_parser
     user_ns = namespace
 
 
@@ -1629,4 +1657,4 @@ def reset():
     formats = ODict()
     defaultsystem = None
     cachedat = {}
-    newprefix("", 1)
+    newprefix('', Value(1.0))

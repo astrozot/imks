@@ -14,9 +14,10 @@ currencytime = None
 
 
 class Currency(units.Value):
-    def __init__(self, value, unit=None, absolute=False, timestamp=None):
-        units.Value.__init__(self, value, unit, absolute)
-        self.timestamp = timestamp
+    def __new__(cls, input, unit=None, timestamp=None, **kw):
+        v = super(Currency, cls).__new__(cls, input, unit=unit, **kw)
+        v.timestamp = timestamp
+        return v
 
 
 def getrates(app_id="", offline=False, grace=3, historical=None,
@@ -82,15 +83,16 @@ def getrates(app_id="", offline=False, grace=3, historical=None,
             return None
 
 
-def saverates(app_id="", base_id=0, *args, **kw):
+def saverates(app_id="", *args, **kw):
     import time
     global basecurrency, currencydict, currencytime
+    currency_unit = units.units[basecurrency].unit
     rates = getrates(app_id=app_id, *args, **kw)
     timestamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(currencytime))
     if rates:
         for k, v in rates.items():
             if v:
-                c = Currency(rates[basecurrency], {base_id: 1}) \
+                c = Currency(rates[basecurrency], currency_unit) \
                     / units.Value(v)
                 c.__doc__ = currencydict[k]
                 c.__timestamp__ = timestamp
@@ -105,29 +107,17 @@ def currencies(app_id="", grace=3, historical=None, background=False):
     import threading
     global basecurrency, currencydict
     # Check that the ID has been set
-    base_id = -1
     if len(app_id) < 5:
         raise ValueError("Currencies are not available without a valid openexchangerates_id")
     # Check if a currency is a base currency
-    if not basecurrency:
-        basecurrency = 'EUR'
-    if basecurrency not in units.baseunits:
-        base_id = len(units.baseunits)
-        v = units.Value(1, {len(units.baseunits): 1})
-        v.__doc__ = basecurrency
-        units.units[basecurrency] = v
-        units.baseunits.append(basecurrency)
-    else:
-        for base_id, base in enumerate(units.baseunits):
-            if base == basecurrency:
-                break
-    assert base_id >= 0, "Internal error: base currency not defined"
+    if not basecurrency or basecurrency not in units.baseunits:
+        raise ValueError("Base currency not defined")
     if historical:
-        saverates(app_id=app_id, base_id=base_id, offline=False,
+        saverates(app_id=app_id, offline=False,
                   historical=historical, strict=True)
     else:
         # Use cache, if available, to update all units offline
-        saverates(app_id=app_id, base_id=base_id, offline=background,
+        saverates(app_id=app_id, offline=background,
                   grace=grace, strict=(grace == 0))
         # Finally, update all units online using a new thread if requested to do so
         if background:

@@ -7,10 +7,10 @@
 
 import time
 from collections import OrderedDict as ODict
-from mpmath import mpmathify, floor
+from math import floor
 from unidecode import unidecode
 from . import pycalcal as pcc
-from .units import Value
+from .units import Value, units
 from . import geolocation
 
 try:
@@ -137,7 +137,7 @@ class CalDate(Value):
     daystart = "midnight"               # midnight, noon, sunset, sunrise, or time
     weeklen = 7                         # The length of a week
 
-    def __init__(self, *opars, **kw):
+    def __new__(cls, *opars, **kw):
         """Initialize an instance of the calendar (a date or a datetime).
 
         This function is generic enough to work with any implemented calendar.
@@ -177,7 +177,7 @@ class CalDate(Value):
         """
         # First, we call the parent constructor.  This fixes self.unit and
         # self.absolute; moreover, it provides a reference length for a day
-        Value.__init__(self, mpmathify(1), "day", absolute=True)
+        self = super(CalDate, cls).__new__(cls, 1.0, "day", absolute=0)
         ref = self.value
         pars = list(opars)              # Parameters can be modified (holidays...)
         self.datetime = kw.get("datetime", None)
@@ -205,10 +205,10 @@ class CalDate(Value):
                     self.tz = pars[0].tz
             elif isinstance(pars[0], Value):
                 if not pars[0].unit:
-                    self.fixed = mpmathify(pars[0].value)
+                    self.fixed = pars[0].value
                 else:
                     pars[0].check_units(self)
-                    self.fixed = mpmathify(pars[0].value / ref)
+                    self.fixed = pars[0].value / ref
                 if self.datetime is None:
                     self.datetime = self.fixed != int(self.fixed)
                 elif not self.datetime:
@@ -223,7 +223,7 @@ class CalDate(Value):
                     self.datetime = True
                 else:
                     try:
-                        self.fixed = mpmathify(pars[0])
+                        self.fixed = pars[0]
                     except TypeError:
                         raise ValueError("Unrecognized date '%s'" % pars[0])
             else:
@@ -235,7 +235,7 @@ class CalDate(Value):
                 self.value = self.fixed * ref
             self.date = None
             # @@@ self.value and all the rest
-            return
+            return self
         # Check possible holidays
         if len(pars) > self.holidayarg and \
                 isinstance(pars[self.holidayarg], str):
@@ -300,9 +300,9 @@ class CalDate(Value):
         if self.datetime:
             # First we need to "massage" self.fixed: make it a float number,
             # and correct it for the daystart calendar attribute.
-            self.fixed = mpmathify(self.fixed)
+            self.fixed = self.fixed
             rest = pars[len(self.dateparts):] + [0, 0, 0]
-            rest0 = mpmathify(rest[0])  # Hours: used for sunset-sunrise calendars
+            rest0 = rest[0]  # Hours: used for sunset-sunrise calendars
             if self.daystart == "midnight":
                 pass
             elif self.daystart == "noon":
@@ -347,11 +347,11 @@ class CalDate(Value):
                 if rest[n] >= maxs[n]:
                     raise ValueError("%s: value %d for %s is not smaller than maximum acceptable (%d)" %
                                      (self.__class__.__name__, rest[n], names[n], maxs[n]))
-            f = mpmathify(rest[0])/24 + mpmathify(rest[1])/1440 + \
-                mpmathify(rest[2])/86400
+            f = rest[0]/24 + rest[1]/1440 + rest[2]/86400
             self.fixed += f / daylength - 0.5
         # @@@ Timezone corrections
-        self.value = Value(self.fixed, "day").value
+        self.value = Value(float(self.fixed), "day").value
+        return self
 
     # Standard operations
     def __copy__(self):
@@ -366,12 +366,12 @@ class CalDate(Value):
     # A.2. Sums and subtractions
     def __add__(self, y):
         if not isinstance(y, Value):
-            y = Value(y)
+            y = Value(float(y))
         if not bool(y.unit):
             delta = y.value
             datetime = self.datetime or not isinstance(delta, (int, long))
         else:
-            delta = y.value / Value(1, "day").value
+            delta = y.value / units['day'].value
             datetime = self.datetime or delta != floor(delta)
         if y.absolute:
             raise ValueError("Cannot add two absolute values")
@@ -384,7 +384,7 @@ class CalDate(Value):
                 delta = y.value
                 datetime = self.datetime or not isinstance(delta, (int, long))
             else:
-                delta = y.value / Value(1, "day").value
+                delta = y.value / units['day'].value
                 datetime = self.datetime or delta != floor(delta)
             absolute = not y.absolute
         elif isinstance(y, CalDate):
@@ -399,7 +399,7 @@ class CalDate(Value):
             return self.__class__(self.fixed - delta, datetime=datetime,
                                   tz=self.tz)
         else:
-            return Value(self.fixed - delta, "day")
+            return Value(float(self.fixed - delta), "day")
     __radd__ = __add__
 
     def __rsub__(self, y):
@@ -544,7 +544,8 @@ class JDDate(CalDate):
     dateparts = ODict([
         ("jd", (lambda x: x[0], None, None))])
 
-    def __init__(self, *pars, **kw):
+    def __new__(cls, *pars, **kw):
+        self = super(JDDate, cls).__new__(cls, *pars, **kw)
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
@@ -557,6 +558,7 @@ class JDDate(CalDate):
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_jd(pars[0])
         self.weeklen = 7
+        return self
 
     def recalc(self):
         if not self.date:
@@ -580,7 +582,8 @@ class MJDDate(CalDate):
     dateparts = ODict([
         ("mjd", (lambda x: x[0], None, None))])
 
-    def __init__(self, *pars, **kw):
+    def __new__(cls, *pars, **kw):
+        self = super(MJDDate, cls).__new__(cls, *pars, **kw)
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
@@ -593,6 +596,7 @@ class MJDDate(CalDate):
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_mjd(pars[0])
         self.weeklen = 7
+        return self
 
     def recalc(self):
         if not self.date:
