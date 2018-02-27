@@ -1,3 +1,5 @@
+numpy
+IPython
 pbr
 pip
 setuptools

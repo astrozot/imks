@@ -1,3 +1,8 @@
+__all__ = ["imks_value_completer", "imks_svalue_completer",
+           "imks_at_completer", "imks_dict_completer",
+           "imks_load_imks_ext", "imks_imks_completer",
+           "imks_date_completer"]
+
 import readline
 from itertools import chain
 from IPython.core.error import TryNext
@@ -7,10 +12,6 @@ from unidecode import unidecode
 from . import units, currencies, calendars
 from .config import *
 
-__all__ = ["imks_value_completer", "imks_svalue_completer",
-           "imks_at_completer", "imks_dict_completer",
-           "imks_load_imks_ext", "imks_imks_completer",
-           "imks_date_completer"]
 
 def _retrieve_obj(name, context):
     # we don't want to call any functions, but I couldn't find a robust regex
@@ -62,13 +63,13 @@ class ImksCompleter(object):
             us = set(us) - set(currencies.currencydict.keys())
         ps = list(filter(lambda x: (x.startswith(text) or text.startswith(x)) and
                          self.is_ascii(x), units.prefixes.keys()))
-        l = len(text)
+        length = len(text)
         # Note that below we do not explicitely add us, since the null prefix
         # is a valid prefix and is already in the list ps.  We do instead add
         # the list of prefixes, as the null unit is not included in us.
         r = filter(lambda x: x.startswith(text) and self.is_ascii(x),
-                   [p for p in ps if len(p) >= l] +
-                   [p + u for u in us for p in ps if len(p) <= l])
+                   [p for p in ps if len(p) >= length] +
+                   [p + u for u in us for p in ps if len(p) <= length])
         return r
 
     @staticmethod
@@ -101,6 +102,7 @@ re_space_match = re.compile(r"[][ \t\n@()+-/*^|&=<>,]+")
 re_value_match = re.compile(r"(?:.*=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?:\[)")
 
 
+# noinspection PyUnusedLocal
 def imks_value_completer(self, event):
     # event has command, line, symbol, text_until_cursor
     # self._ofind(base) has obj, parent, isalias, namespace, found, ismagic
@@ -116,6 +118,7 @@ def imks_value_completer(self, event):
 re_svalue_match = re.compile(r"(?:.*=)?(\d+(?:\.\d*)?(?:[eE][-+]?\d*)?\s*)(?: )")
 
 
+# noinspection PyUnusedLocal
 def imks_svalue_completer(self, event):
     m = re_svalue_match.split(event.text_until_cursor)
     u = m[-1]  # full unit
@@ -129,6 +132,7 @@ def imks_svalue_completer(self, event):
 re_unit_match = re.compile(r"\[([^]]*)\]\s*,?\s*")
 
 
+# noinspection PyUnusedLocal
 def imks_at_completer(self, event):
     # event has command, line, symbol, text_until_cursor
     # self._ofind(base) has obj, parent, isalias, namespace, found, ismagic
@@ -162,11 +166,13 @@ def imks_dict_completer(self, event):
     return imks_completer.get_quotes(item, items)
 
 
+# noinspection PyUnusedLocal
 def imks_load_imks_ext(self, event):
     return ["constants", "currencies", "calendars", "geolocation", "jpl",
             "wiki", "wolfram"]
 
 
+# noinspection PyUnusedLocal
 def imks_imks_completer(self, event):
     words = re.split(r"\s+", event.text_until_cursor)
     opts = "ha:e:u:s:k:t:c:m:M:p:o:d:"

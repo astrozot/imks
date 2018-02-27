@@ -5,30 +5,47 @@ from collections import OrderedDict as ODict
 from fractions import Fraction
 import numpy as np
 from ply import lex, yacc
-import traceback, re, types
-from mpmath.ctx_mp_python import mpnumeric
+import re
 
-from IPython.core.debugger import Pdb
+# from IPython.core.debugger import Pdb
 # Pdb().set_trace()
 
 try:
+    # noinspection PyCompatibility
     basestring
 except NameError:
+    # noinspection PyShadowingBuiltins
     basestring = str
 
-from .spelling import *
+try:
+    from mpmath.ctx_mp_python import mpnumeric
+except ImportError:
+    mpnumeric = float
 
+from .spelling import *
 
 #####################################################################
 # Numerical service functions
 
+
 def almost_equal(x, y=0, eps=1e-7):
-    """Check if two numbers are almost equal."""
+    """Check if two numbers are almost equal.
+
+    :param float x:  the first number to check
+    :param float y:  the second number to check [0]
+    :param eps:      the checking tolerance [1e-7]
+    :rtype bool:
+    """
     return abs(x - y) < eps
 
 
 def fraction(x, max_den=10000000):
-    """Convert a float into a fraction, with a given maximum denominator."""
+    """Convert a float into a fraction, with a given maximum denominator.
+
+    :param float x:      number to convert
+    :param int max_den:  maximum denominator accepted
+    :rtype (int, int):
+    """
     f = Fraction(x).limit_denominator(max_den)
     return f.numerator, f.denominator
 
@@ -39,6 +56,7 @@ def fraction(x, max_den=10000000):
 class UnitError(Exception):
     """Abstract class for general unit exceptions."""
     pass
+
 
 class UnitParseError(UnitError):
     """Class for unit parsing errors."""
@@ -59,6 +77,7 @@ class UnitParseError(UnitError):
 class UnitCompatibilityError(UnitError):
     """Class for unit compability exceptions."""
     def __init__(self, u1, u2, where=None):
+        import traceback
         self.u1 = u1
         self.u2 = u2
         if where and where > 2:
@@ -76,6 +95,7 @@ class UnitCompatibilityError(UnitError):
 class UnitAbsoluteError(Exception):
     """Class for exceptions related to absolute units."""
     def __init__(self, a1, a2, where=None):
+        import traceback
         self.a1 = "absolute" if a1 is not False else "relative"
         self.a2 = "absolute" if a2 is not False else "relative"
         if where and where > 2:
@@ -118,6 +138,9 @@ def extract_name(doc):
 def unit_parser(unit):
     """General parser for units.
 
+    :param str unit: the string to parse
+    :return (Value, UnitTree): the full result of the parsing
+
     The parse tries to parse first simple units, such as 'm/s^', then verbose
     ones, such as 'meter per second squared'.
     """
@@ -137,10 +160,26 @@ class Doc(object):
     tdict = {}
 
     def __init__(self, doc="", source=""):
+        """A class o generate documentation strings.
+
+        :param str doc:  documentation string
+        :param source:   source string
+        """
         self.doc = doc
         self.source = source
 
     def __rand__(self, x):
+        """Operator overload for Doc objects.
+
+        The operator makes it possible to do something like
+        >>> m = Value(80, "kg") | Doc("Average mass of a person.")
+
+        :param Any x:  Variable to annotate
+        :return Any:   x annotated
+
+        If x is a basic type that cannot be extended with the __doc__ attribute,
+        this function returns a new copy of x generated with `make_object_w_doc`.
+        """
         try:
             if self.doc:
                 x.__doc__ = self.doc
@@ -166,14 +205,23 @@ class UnitTree(tuple):
     trees that contains parentheses: kg / (km/s)^2 would be represented
     as
 
-    ((kg, 1), (((km, 1), (s, -1)), 2))
+    (("kg", 1), ((("km", 1), ("s", -1)), 2))
     """
-    def __new__(cls, *args, **kw):
-        """Overrides constructor for immutable type."""
-        return super(UnitTree, cls).__new__(cls, *args, **kw)
+    def __new__(cls, obj=()):
+        """Overrides constructor for immutable type.
+
+        :param Tuple[Tuple[Union[str, UnitTree], float]] obj:  UnitTree description
+        """
+        return super(UnitTree, cls).__new__(cls, obj)
 
     @classmethod
     def simple(cls, name, exp=1):
+        """Return a simple UnitTree with a single unit.
+
+        :param str name:  Name of the unit
+        :param int exp:   Exponent [1]
+        :return UnitTree:
+        """
         return cls(((name, exp),))
 
     def __bool__(self):
@@ -191,18 +239,36 @@ class UnitTree(tuple):
         return UnitTree(((b, -e) for b, e in self))
 
     def __add__(self, t):
-        """Sum of units, i.e. product of quantities."""
+        """Sum of unit trees, i.e. product of quantities.
+
+        :param UnitTree t:  tree to add
+        """
         return UnitTree(super(UnitTree, self).__add__(t))
 
     def __sub__(self, t):
-        """Sum of units, i.e. product of quantities."""
+        """Sum of unit trees, i.e. product of quantities.
+
+        :param UnitTree t:  tree to subtract
+        """
         return UnitTree(super(UnitTree, self).__add__(-t))
 
     def __mul__(self, f):
-        """Multiplication of a unit, i.e. exponentiation."""
-        return UnitTree(((b, e*f) for b, e in self))
+        """Multiplication of a unit, i.e. exponentiation.
+
+        :param float f:  exponent"""
+        if len(self) == 1 and self[0][1] == 1:
+            return UnitTree(((self[0][0], f),))
+        elif f == 1:
+            return self
+        else:
+            return UnitTree(((self, f),))
+        # return UnitTree(((b, e*f) for b, e in self))
 
     def to_value(self):
+        """Convert a UnitTree to the Value it represents.
+
+        :return Value:  value represented by the UnitTree
+        """
         global user_ns
         r = Value(1.0)
         for u, e in self:
@@ -224,9 +290,10 @@ class UnitTree(tuple):
         Returns a tuple (f, u), where f is a scalar factor that represents the
         deleted units, and u the new unit with double quotes removed as a
         UnitTree.
+
+        :return UnitTree:  New UnitTree without units
         """
         global user_ns
-        variables = None
         factor = 1
         new_unit = []
         for k, v in self:
@@ -242,6 +309,14 @@ class UnitTree(tuple):
         return factor, UnitTree(new_unit)
 
     def show(self, latex=False, verbose=False, singular=False):
+        """
+
+        :param bool latex:    If true, the output follow the LaTeX style
+        :param bool verbose:  If true, units are shown in verbose mode (e.g.
+                              "meters per second"
+        :param bool singular: If true, do not use plurals in verbose mode
+        :return str:          The converted UnitTree
+        """
         unit = []
         negpow = None
         first = True
@@ -261,7 +336,7 @@ class UnitTree(tuple):
                     if u[0] == "'" == u[-1] or not verbose:
                         base = u
                     else:  # thus verbose and no quotes
-                        iu = isunit(u)
+                        iu = isunit(u) or isunit(u, True)
                         base = (extract_name(prefixes[iu[0]].__doc__) if iu[0] else "") + \
                                (extract_name(units[iu[1]].__doc__) if iu[1] else "")
                         space_like = iu[1] in space_units
@@ -288,7 +363,6 @@ class UnitTree(tuple):
                     if p < 0:
                         if negpow is None:
                             unit.append("inverse")
-                        # FIXME: Multiple "per" in verbose unit
                         elif negpow is False:
                             unit.append("per")
                         p = -p
@@ -349,7 +423,13 @@ class Unit(np.ndarray):
     would represent an acceleration [m/s^2].
     """
 
-    def __new__(cls, *args, **kw):
+    def __new__(cls, *args, **kwargs):
+        """Build a new unit following the arguments
+
+        :param Union(str, np.ndarray, List[float]) args:  Unit specification
+        :param kwargs:  Unused
+        :return Unit:   Newly created unit
+        """
         shape = len(baseunits)
         obj = np.zeros(shape).view(cls)
         if len(args) == 0:
@@ -373,8 +453,8 @@ class Unit(np.ndarray):
             return
 
     def show(self, *args, **kwargs):
-        l = tuple((baseunits[n], e) for n, e in enumerate(self) if e != 0)
-        return UnitTree(l).show(*args, **kwargs)
+        lst = tuple((baseunits[n], e) for n, e in enumerate(self) if e != 0)
+        return UnitTree(lst).show(*args, **kwargs)
 
     def __bool__(self):
         """Check if a unit is non zero, i.e. if it represents a non-pure number."""
@@ -403,23 +483,23 @@ class Unit(np.ndarray):
 
 class Value(np.ndarray):
 
-    def __new__(cls, input, unit=None, **kw):
+    def __new__(cls, value, unit=None, **kw):
         """
 
-        :param input:
+        :param value:
         :param unit:
         :param absolute:
         :param original:
         :return:
         """
-        obj = np.asanyarray(input).view(cls)
+        obj = np.asanyarray(value).view(cls)
         # add the new attributes to the instance
         if unit is None:
-            unit = getattr(input, "unit", Unit())
-        absolute = kw.get("absolute", getattr(input, "absolute", False))
+            unit = getattr(value, "unit", Unit())
+        absolute = kw.get("absolute", getattr(value, "absolute", False))
         original = kw.get("original", False)
-        showunit = kw.get("showunit", getattr(input, "showunit", None))
-        showprefix = kw.get("showprefix", getattr(input, "showprefix", None))
+        showunit = kw.get("showunit", getattr(value, "showunit", None))
+        showprefix = kw.get("showprefix", getattr(value, "showprefix", None))
         if not isinstance(unit, Unit):
             if isinstance(unit, np.ndarray):
                 unit = Unit(unit)
@@ -481,10 +561,15 @@ class Value(np.ndarray):
         return value
 
     def set_units(self, us):
-        """Return a new Value with a different default display unit."""
-        # FIXME: put in ParseUnit; use functools.lru_cache instead of cachedat
+        """Return a new Value with a different default display unit.
+
+        :param tuple(str) us:  Tuple of units or prefixes that needs to be used
+                               when displaying the value
+        :rtype Value:          New value with the `showunit` and `showprefix` set
+        """
+        # We could also use functools.lru_cache instead of cachedat, but it would be
+        # probably not as efficient in our situation; also requires python > 3.5
         global cachedat, sortunits, formats, user_ns
-        # Pdb().set_trace()
         nunits = 0   # num. of units in us
         nvalues = 0  # num. of value'd units in us
         s = Value(self)
@@ -513,7 +598,6 @@ class Value(np.ndarray):
                 if u[0] == "*":
                     s.showprefix.extend(prefixes.keys())
                     u = u[1:]
-                # FIXME: This returns a unit even if it is a composed term, such as A/s
                 iu = isunit(u)
                 if iu and iu[1] == "":
                     s.showprefix.append(u)
@@ -567,6 +651,7 @@ class Value(np.ndarray):
                 cachedat[tuple(oldus)] = (m, newus, newvs)
             else:
                 # Check if we are requested a particular unit in a natural system
+                # This does not get to the cache, so we always get here!
                 if nunits == 1 and nvalues > 0 and not isinstance(us[0], basestring):
                     tmp = Value(1.0, oldus[0].replace('"', "'")).set_units([oldus[0]])
                     out = (self / tmp).set_units(oldus[1:])
@@ -599,12 +684,10 @@ class Value(np.ndarray):
                 # FIXME: remove_variable_units now has a different interface!
                 # return s.remove_variable_units()
                 return s
-        r = np.linalg.solve(m.T, np.array(s.unit))
-        uvs = sum((u*e for u,e in zip(newus, r)), UnitTree())
+        r = zip(newus, np.linalg.solve(m.T, np.array(s.unit)))
         if sortunits:
-            s.showunit = UnitTree(sorted(uvs, key=lambda x: x[1] < 0))
-        else:
-            s.showunit = uvs
+            r = sorted(r, key=lambda x: x[1] < 0)
+        s.showunit = sum((u*e for u, e in r if e != 0), UnitTree())
         # FIXME: remove_variable_units now has a different interface!
         # return s.remove_variable_units()
         return s
@@ -624,6 +707,7 @@ class Value(np.ndarray):
             for c in itertools.combinations(ks, abs(level)):
                 js = []
                 mat = np.zeros(shape=(len(baseunits), abs(level)))
+                residuals = 1.0
                 for l, cu in enumerate(c):
                     if isinstance(d[cu], tuple):
                         u = d[cu][0].unit
@@ -639,7 +723,7 @@ class Value(np.ndarray):
                 except ValueError:
                     continue
                 if np.sum(residuals) < 1e-7 and min(map(abs, x)) > 1e-5:
-                    yield sum((u * e for u, e in zip(js, x)), UnitTree())
+                    yield sum((u * e for u, e in zip(js, x) if e != 0), UnitTree())
 
     def show(self, latex=False, verbose=False):
         global defaultsystem
@@ -725,6 +809,7 @@ class Value(np.ndarray):
     def __str__(self):
         return self.show(verbose=verbose)
 
+    # noinspection PyUnusedLocal
     def _repr_pretty_(self, p, cycle):
         if self.showunit is not None and callable(self.showunit):
             p.text(self.showunit(self, pretty=True))
@@ -762,7 +847,7 @@ class Value(np.ndarray):
             return Value(self.value - y.value, unit, absolute=offset)
         else:
             return Value(self.value - y.value + offset, unit)
-    
+
     def __mul__(self, y):
         if not isinstance(y, Value):
             y = Value(y)
@@ -776,6 +861,7 @@ class Value(np.ndarray):
     def __div__(self, y):
         if not isinstance(y, Value):
             y = Value(y)
+        absolute = False
         if self.absolute is not None and not bool(y.unit):
             absolute = self.absolute
         return Value(self.value / y.value, self.unit - y.unit, absolute=absolute)
@@ -794,7 +880,12 @@ class Value(np.ndarray):
         if not isinstance(y, Value):
             y = Value(y)
         unit = self.unit - y.unit
-        d, m = np.divmod(self.value, y.value)
+        if hasattr(np, "divmod"):
+            # noinspection PyUnresolvedReferences
+            d, m = np.divmod(self.value, y.value)
+        else:
+            d = self.value / y.value
+            m = self.value % y.value
         return Value(d, unit), Value(m, unit)
 
     def __pow__(self, y, modulo=None):
@@ -909,10 +1000,15 @@ class Value(np.ndarray):
         if not isinstance(y, Value):
             y = Value(y)
         unit = y.unit - self.unit
-        d, m = np.divmod(y.value, self.value)
+        if hasattr(np, "divmod"):
+            # noinspection PyUnresolvedReferences
+            d, m = np.divmod(y.value, self.value)
+        else:
+            d = y.value / self.value
+            m = y.value % self.value
         return Value(d, unit), Value(m, unit)
 
-    def __rpow__(self, y):
+    def __rpow__(self, y, **kwargs):
         value = self.check_pure()
         if not isinstance(y, Value):
             y = Value(y)
@@ -958,23 +1054,24 @@ class Value(np.ndarray):
         return operator.index(self.check_pure())
 
     def __trunc__(self):
-        return Value(self.value.__trunc__(), self.unit)
+        return Value(np.trunc(self.value), self.unit)
 
     def __float__(self):
         return float(self.check_pure())
 
     def __complex__(self):
-        return complex(self.check_pure())
+        return self.check_pure().astype(complex)
 
-    def _mpmath_(self, prec, rounding):
+    # noinspection PyUnusedLocal
+    def _mpmath_(self, *args, **kwargs):
         from mpmath import mpmathify
         return mpmathify(self.check_pure())
 
     def __oct__(self):
-        return oct(self.check_pure())
+        return oct(np.asscalar(self.check_pure()))
 
     def __hex__(self):
-        return hex(self.check_pure())
+        return hex(np.asscalar(self.check_pure()))
 
 
 class System(object):
@@ -1045,36 +1142,6 @@ class System(object):
             raise TypeError("Unsupported operand types for &: 'System' and '%s'"
                             % y.__class__.__name__)
 
-
-class LazyValue(Value):
-    """A variable whose value is calculated lazy when required."""
-    def __init__(self, expression, globals=None, locals=None, once=False,
-                 unit_once=True):
-        if callable(expression):
-            self.expression = expression
-        else:
-            self.expression = lambda: eval(expression, globals, locals)
-        self._once = once
-        self._unit_once = unit_once
-        self._unit_set = False
-
-    def __getattr__(self, attr):
-        res = self.expression()
-        if not isinstance(res, Value):
-            res = Value(res)
-        if self._once:
-            self.value = res.value
-            self._once = False
-        if self._once or self._unit_once:
-            self.unit = res.unit
-            self.showunit = res.showunit
-            self.showprefix = res.showprefix
-            self.absolute = res.absolute
-            self._unit_once = False
-            self._unit_set = True
-        elif self._unit_set and self.unit != res.unit:
-            raise UnitCompatibilityError(self.unit, res.unit)
-        return getattr(res, attr)
 
 ######################################################################
 # Currency symbols
@@ -1161,18 +1228,20 @@ tokens = (
     ) + tuple(reserved.values())
 
 # Regular expression rules for simple tokens
-t_NUMDIV  = r'/(?=[ \t]*\d)'
+t_NUMDIV = r'/(?=[ \t]*\d)'
 t_UNITDIV = r'/(?=[ \t]*\D)'
-t_POW     = r'\^'
-t_DOT     = r'\.'
-t_LPAREN  = r'\('
-t_RPAREN  = r'\)'
-t_QUOTE   = r"\'"
+t_POW = r'\^'
+t_DOT = r'\.'
+t_LPAREN = r'\('
+t_RPAREN = r'\)'
+t_QUOTE = r"\'"
 
-unit_regex = u"([^\\W\d]+(-[^\\W\\d]+)*|°\\w*|\\$|" + \
+# The way units are defined here, they can contain dashes in their name, but not digits
+unit_regex = u"([^\\W\\d]+(-[^\\W\\d]+)*|°\\w*|\\$|" + \
              u"|".join([re.escape(_v_) for _v_ in currency_symbols.values()]) + u")"
 
-# A unit or a keyword in verbose mode
+
+# A unit, or also a keyword in verbose mode
 @lex.TOKEN(unit_regex)
 def t_UNIT(t):
     if t.lexer.verbose:
@@ -1204,6 +1273,7 @@ def t_ORDINAL(t):
     else:
         raise UnitParseError(t.value, "ordinals not allowed in this context", t.lineno)
 
+
 def t_FLOAT(t):
     r"""[-+]?\d+\.\d+"""
     try:
@@ -1211,6 +1281,7 @@ def t_FLOAT(t):
     except ValueError:
         raise UnitParseError(t.value, "number conversion failed", t.lineno)
     return t
+
 
 # A regular expression for numbers and ordinals
 def t_NUMERAL(t):
@@ -1220,6 +1291,7 @@ def t_NUMERAL(t):
     except ValueError:
         raise UnitParseError(t.value, "number conversion failed", t.lineno)
     return t
+
 
 # Define a rule so we can track line numbers
 def t_newline(t):
@@ -1304,7 +1376,6 @@ def p_expression1(p):
         if isinstance(a, tuple):
             a = a[1]
         p[0] = (a ** p[4], p[1][1] * p[4])
-
 
 
 def p_expression1_verbose(p):
@@ -1402,8 +1473,7 @@ def p_unit(p):
             u1 = units[u]
         else:
             u1 = 1
-        # FIXME: toggle verbose output
-        if False:
+        if p.parser.verbose:
             new_name = p[1]
         else:
             new_name = k + u
@@ -1444,10 +1514,10 @@ def newbaseunit(name, doc=""):
     verbose_units[verbose_name] = name
     verbose_units[plural(verbose_name)] = name
     # Fix all other units
-    for k,u in units.items():
+    for k, u in units.items():
         uu = u.unit
         units[k].unit = Unit(np.hstack((uu, np.zeros(n_bases - len(uu)))))
-    for k,u in prefixes.items():
+    for k, u in prefixes.items():
         uu = u.unit
         prefixes[k].unit = Unit(np.hstack((uu, np.zeros(n_bases - len(uu)))))
     cachedat = {}
@@ -1465,8 +1535,6 @@ def newprefix(name, value, doc="", source=""):
     v = Value(value)
     v.check_pure()
     v.unit = Unit()                     # Just in case tolerant is True...
-    if isinstance(value, LazyValue):
-        v = value
     v.__doc__ = doc
     if source:
         v.__source__ = source
@@ -1485,21 +1553,18 @@ def delprefix(name):
 
 def newunit(name, value, doc="", source=""):
     global units, verbose_units, cachedat
-    if isinstance(value, LazyValue):
-        v = value
+    if not isinstance(value, (int, float, Value, tuple, mpnumeric)):
+        raise ValueError("The unit %s must be a simple value or a tuple" % name)
+    if isinstance(value, tuple):
+        if len(value) != 2:
+            raise ValueError("The absolute unit `%s` is not a 2-tuple" % name)
+        z, v = Value(value[0]), Value(value[1])
+        v.check_units(z)
+        v.absolute = z.value
     else:
-        if not isinstance(value, (int, float, Value, tuple, mpnumeric)):
-            raise ValueError("The unit %s must be a simple value or a tuple" % name)
-        if isinstance(value, tuple):
-            if len(value) != 2:
-                raise ValueError("The absolute unit `%s` is not a 2-tuple" % name)
-            z, v = Value(value[0]), Value(value[1])
-            v.check_units(z)
-            v.absolute = z.value
-        else:
-            v = Value(value)
-        if name == "m" or v.unit == units["m"].unit:
-            space_units.append(name)
+        v = Value(value)
+    if name == "m" or v.unit == units["m"].unit:
+        space_units.append(name)
     v = v & Doc(doc)
     if source:
         v.__source__ = source
@@ -1532,7 +1597,7 @@ def delsystem(name):
     del systems[name]
 
 
-isunit_re = re.compile(unit_regex, re.UNICODE)
+isunit_re = re.compile('^' + unit_regex + '$', re.UNICODE)
 
 
 def isunit(fullname, verbose=False):
@@ -1564,8 +1629,7 @@ def isunit(fullname, verbose=False):
         elif name[-1] == "*" and not name[0:-1] in prefixes:
             return name[0:-1], ""
         else:
-            ks = [k for k in prefixes.keys()
-                  if k == name[:len(k)]]
+            ks = [k for k in prefixes.keys() if k == name[:len(k)]]
             for k in ks:
                 u = name[len(k):]
                 if u in units:

@@ -46,7 +46,6 @@ class UnitTestCase(unittest.TestCase):
                  ("5600[K] @ [SI]", "5.6[kK]"),
                  ("1e-34[m] @ [planck]", "6.187244430648[]"),
                  ("6.2e34 @ [m|planck]", "1.0020615913101[m]"),
-                 ("1 @ [planck|kg]", "1[]"),
                  ('1e-27 @ [kg/m|"c"|"G"]', "1.3466353096409[kg m^-1]"),
                  ('1 @ [kg|m|"c"|"G"]', "1[]"),
                  ("1e8 @ [kg|'planck']",
@@ -80,7 +79,7 @@ class UnitTestCase(unittest.TestCase):
                 msg="Operation failed (unit error): %s != %s" % (u1, u2))
 
     def test_calendars(self):
-        tests = [('Gregorian(1900, 2, 28) + 1[day]', 'Thursday, 1 March 1900'),
+        tests = [('Gregorian(1900, 2, 28) + 1[day]', '/Thursday, 1 March 1900.*/'),
                  ('(Julian(1900, 2, 28) + 1[day]).month', '2'),
                  ('Gregorian(1973, "Easter")', "Sunday, 22 April 1973"),
                  ("2020.1.1", "Wednesday, 1 January 2020"),
@@ -88,7 +87,7 @@ class UnitTestCase(unittest.TestCase):
                  ('Hebrew(5778, "Passover")', "Yom shabbat, 15 Nisan 5778"),
                  ('Gregorian("today") - Gregorian("yesterday") @ day', "1.0[day]"),
                  ('Tibetan(2144, "snron", 0, 3, 0)', "gza' nyi ma, 3 snron 2144")]
-        self.shell.push(u"%load_imks_ext calendars")
+        self.shell.push(u"%load_imks_ext -s calendars")
         for x1, x2 in tests:
             if "[" in x2:
                 c1, v1, u1 = self.run_line(x1)
@@ -99,11 +98,16 @@ class UnitTestCase(unittest.TestCase):
                     msg="Operation failed: %s = %s[%s] != %s" % (x1, v1, u1, x2))
                 self.assertEqual(u1, u2,
                     msg="Operation failed (unit error): %s != %s" % (u1, u2))
+
             else:
                 self.shell.push(u"_res_=" + x1)
                 r1 = str(self.shell.locals['_res_'])
-                self.assertEqual(r1, x2,
-                    msg="Operation failed: %s = %s != %s" % (x1, r1, x2))
+                if x2[0] == '/':
+                    self.assertRegexpMatches(r1, x2[1:-1],
+                        msg="Operation failed: %s = %s !~ %s" % (x1, r1, x2[1:-1]))
+                else:
+                    self.assertEqual(r1, x2,
+                        msg="Operation failed: %s = %s != %s" % (x1, r1, x2))
 
             
 if __name__ == '__main__':

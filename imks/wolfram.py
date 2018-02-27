@@ -2,12 +2,12 @@
 
 try:
     from urllib import request, error
-except:
+except ImportError:
+    # noinspection PyCompatibility
     import urllib2 as request
     error = request
 
 import json
-import re
 
 from .units import Value, UnitParseError
 from .config import *

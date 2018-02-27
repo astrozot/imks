@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from imks._version import __version__, __date__
+from ._version import __version__, __date__
 from imks import units
 
 try:
@@ -8,13 +8,12 @@ try:
 except ImportError:
     from peak.util.proxies import CallbackProxy, LazyProxy
 
-from .config import *
-
 
 ######################################################################
 # Completer
 
 
+# noinspection PyUnusedLocal
 def imks_standalone_completer(text, state):
     return None
 
@@ -26,16 +25,18 @@ magic = None
 
 
 def load_imks(shell=None):
-    from imks.magics import ImksMagic, change_engine
-    global config, magic
+    from .magics import ImksMagic, change_engine
+    from .config import config
+    global magic
 
     # make sure we have a ~/.imks directory
-    import os, os.path
+    import os.path
     dotpath = os.path.join(os.environ["HOME"], ".imks")
     if os.path.exists(dotpath):
         if not os.path.isdir(dotpath):
             raise IOError("~/.imks must be a directory")
     else:
+        import os
         print("Making the directory ~/.imks")
         os.mkdir(dotpath)
 

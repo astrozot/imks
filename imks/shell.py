@@ -1,10 +1,13 @@
-import sys, os, shlex, getopt
-import tokenize, inspect
-from io import StringIO, open
+import getopt
+import inspect
+import os
+import shlex
+import sys
+import tokenize
 from code import InteractiveConsole
+from io import StringIO, open
 
-from .config import *
-from .transformers import command_transformer, unit_transformer, transform, magic_transformer
+from .transformers import command_transformer, unit_transformer, magic_transformer
 
 
 class Shell(InteractiveConsole):
@@ -52,7 +55,9 @@ class Shell(InteractiveConsole):
             result = fn(line)
             return result
 
-    def find_user_code(self, target, *args, **kwargs):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def find_user_code(target, *args, **kwargs):
         with open(target, "rt", encoding="utf-8") as f:
             return f.read()
 
@@ -123,6 +128,7 @@ class Magics(object):
     # Instance of IPython shell
     shell = None
 
+    # noinspection PyUnusedLocal
     def __init__(self, shell=None, **kwargs):
         if not self.__class__.registered:
             raise ValueError('Magics subclass without registration - '
@@ -149,7 +155,8 @@ class Magics(object):
                 self.magics[magic_name] = meth_name
         self.shell.magics = self.magics
 
-    def arg_err(self, func):
+    @staticmethod
+    def arg_err(func):
         """Print docstring if incorrect arguments were passed."""
         print('Error in arguments:')
         print(inspect.getdoc(func))

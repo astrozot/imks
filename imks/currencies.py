@@ -14,15 +14,15 @@ currencytime = None
 
 
 class Currency(units.Value):
-    def __new__(cls, input, unit=None, timestamp=None, **kw):
-        v = super(Currency, cls).__new__(cls, input, unit=unit, **kw)
+    def __new__(cls, value, unit=None, timestamp=None, **kw):
+        v = super(Currency, cls).__new__(cls, value, unit=unit, **kw)
         v.timestamp = timestamp
         return v
 
 
 def getrates(app_id="", offline=False, grace=3, historical=None,
              strict=False, timeout=3):
-    import os, os.path, time, pickle, json
+    import os, time, pickle, json
     global currencydict, currencytime
     url1 = 'http://openexchangerates.org/api/currencies.json'
     url2 = 'https://openexchangerates.org/api/latest.json?app_id=%s' % app_id
@@ -122,8 +122,7 @@ def currencies(app_id="", grace=3, historical=None, background=False):
         # Finally, update all units online using a new thread if requested to do so
         if background:
             thread = threading.Thread(target=saverates,
-                                      kwargs={'base_id': base_id, 'base': basecurrency,
-                                              'grace': grace})
+                                      kwargs={'grace': grace})
             thread.setDaemon(True)              # so we can always quit w/o waiting
             thread.start()
 
