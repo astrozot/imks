@@ -14,27 +14,34 @@ currencytime = None
 
 
 class Currency(units.Value):
-    def __init__(self, value, unit=None, absolute=False, timestamp=None):
-        units.Value.__init__(self, value, unit, absolute)
-        self.timestamp = timestamp
+    def __new__(cls, value, unit=None, timestamp=None, **kw):
+        v = super(Currency, cls).__new__(cls, value, unit=unit, **kw)
+        v.timestamp = timestamp
+        return v
 
 
 def getrates(app_id="", offline=False, grace=3, historical=None,
              strict=False, timeout=3):
-    import os, os.path, time, pickle, json
+    import os
+    import time
+    import pickle
+    import json
     global currencydict, currencytime
     url1 = 'http://openexchangerates.org/api/currencies.json'
     url2 = 'https://openexchangerates.org/api/latest.json?app_id=%s' % app_id
     url3 = 'http://openexchangerates.org/api/historical/%%s.json?app_id=%s' % app_id
-    # FIXME: ~/.imks might not exist
-    path = os.path.join(os.getenv('HOME'), '.imks', 'currencies.dat')
-    if historical:
-        force = True
-    else:
-        force = False
+    # Next line just to avoid PyCharm warnings
+    home = path = imks_path = ''
+    force = True
+    if not historical:
         try:
-            currencytime = os.path.getmtime(path)
-            delta = (time.time() - currencytime) / 86400.0
+            home = os.getenv('HOME')
+            if not home:
+                raise OSError
+            imks_path = os.path.join(home, '.imks')
+            path = os.path.join(imks_path, 'currencies.dat')
+            update = os.path.getmtime(path)
+            delta = (time.time() - update) / 86400.0
         except OSError:
             force = True
             delta = 0
@@ -54,11 +61,16 @@ def getrates(app_id="", offline=False, grace=3, historical=None,
             data = json.loads(response.decode('utf-8'))
             currencytime = data["timestamp"]
             rates = data["rates"]
-            if not historical:
-                f = open(path, "wb")
-                pickle.dump(currencydict, f, protocol=2)
-                pickle.dump(rates, f, protocol=2)
-                f.close()
+            if home and not historical:
+                try:
+                    if not os.path.exists(imks_path):
+                        os.mkdir(imks_path)
+                    f = open(path, 'wb')
+                    pickle.dump(currencydict, f, protocol=2)
+                    pickle.dump(rates, f, protocol=2)
+                    f.close()
+                except OSError:
+                    pass
             return rates
         except error.URLError as e:
             if strict:
@@ -82,15 +94,16 @@ def getrates(app_id="", offline=False, grace=3, historical=None,
             return None
 
 
-def saverates(app_id="", base_id=0, *args, **kw):
+def saverates(app_id="", *args, **kw):
     import time
     global basecurrency, currencydict, currencytime
+    currency_unit = units.units[basecurrency].unit
     rates = getrates(app_id=app_id, *args, **kw)
     timestamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(currencytime))
     if rates:
         for k, v in rates.items():
             if v:
-                c = Currency(rates[basecurrency], {base_id: 1}) \
+                c = Currency(rates[basecurrency], currency_unit) \
                     / units.Value(v)
                 c.__doc__ = currencydict[k]
                 c.__timestamp__ = timestamp
@@ -105,35 +118,22 @@ def currencies(app_id="", grace=3, historical=None, background=False):
     import threading
     global basecurrency, currencydict
     # Check that the ID has been set
-    base_id = -1
     if len(app_id) < 5:
         raise ValueError("Currencies are not available without a valid openexchangerates_id")
     # Check if a currency is a base currency
-    if not basecurrency:
-        basecurrency = 'EUR'
-    if basecurrency not in units.baseunits:
-        base_id = len(units.baseunits)
-        v = units.Value(1, {len(units.baseunits): 1})
-        v.__doc__ = basecurrency
-        units.units[basecurrency] = v
-        units.baseunits.append(basecurrency)
-    else:
-        for base_id, base in enumerate(units.baseunits):
-            if base == basecurrency:
-                break
-    assert base_id >= 0, "Internal error: base currency not defined"
+    if not basecurrency or basecurrency not in units.baseunits:
+        raise ValueError("Base currency not defined")
     if historical:
-        saverates(app_id=app_id, base_id=base_id, offline=False,
+        saverates(app_id=app_id, offline=False,
                   historical=historical, strict=True)
     else:
         # Use cache, if available, to update all units offline
-        saverates(app_id=app_id, base_id=base_id, offline=background,
+        saverates(app_id=app_id, offline=background,
                   grace=grace, strict=(grace == 0))
         # Finally, update all units online using a new thread if requested to do so
         if background:
             thread = threading.Thread(target=saverates,
-                                      kwargs={'base_id': base_id, 'base': basecurrency,
-                                              'grace': grace})
+                                      kwargs={'grace': grace})
             thread.setDaemon(True)              # so we can always quit w/o waiting
             thread.start()
 

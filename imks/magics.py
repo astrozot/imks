@@ -5,6 +5,7 @@ import re
 from collections import OrderedDict as ODict
 
 try:
+    # noinspection PyStatementEffect
     __IPYTHON__
     from IPython.core.magic import Magics, magics_class, line_magic
     from IPython.core.page import page
@@ -13,7 +14,6 @@ except NameError:
     page = print
 
 from . import units, currencies, calendars
-from .config import *
 from .transformers import command_transformer, unit_transformer, transform
 from ._version import __version__, __date__
 
@@ -25,7 +25,7 @@ except ImportError:
 
 def change_engine(namespace, newengine):
     from importlib import import_module
-    global internals
+    from .config import internals
     try:
         my_module = import_module("imks.units_" + newengine)
     except:
@@ -94,7 +94,7 @@ class ImksMagic(Magics):
 
         An additional <on|off> argument enable or disable imks altogether [%s].
         """
-        global config
+        from .config import config
         ImksMagic.__dict__["imks"].__doc__ = ImksMagic.imks_doc.__doc__ % \
             ("on" if config["auto_brackets"] else "off",
              "on" if config["standard_exponent"] else "off",
@@ -116,7 +116,7 @@ class ImksMagic(Magics):
             if units.units or len(units.prefixes) > 1:
                 print(*p_args, **p_kwargs)
                 
-        global config
+        from .config import config
         opts, name = self.parse_options(args, 'ha:e:u:s:k:t:$:c:m:M:p:o:d:v:')
         if name in ["on", "1", "yes"]:
             config["enabled"] = True
@@ -262,7 +262,7 @@ class ImksMagic(Magics):
         directory, and finally in the /script directory under the package location. The
         latter location contains the standard modules distributed with imks.
         """
-        import os, os.path
+        import os
         ip = self.shell
         modules = arg.split(",")
         for module in modules:
@@ -291,7 +291,6 @@ class ImksMagic(Magics):
                 raise ImportError("Could not find imks file named %s" %
                                   module.strip())
 
-            
     @line_magic
     def load_imks_ext(self, arg):
         """Load one ore more imks extensions.
@@ -315,8 +314,7 @@ class ImksMagic(Magics):
           wiki          search through Wikipedia infoboxes
           wolfram       use Wolfram Alpha to query quantities
         """
-        import os, os.path
-        global internals
+        from .config import internals
         ip = self.shell
         oldkeys = set(ip.user_ns.keys())
         oldunits = set(units.units.keys())
@@ -333,7 +331,7 @@ class ImksMagic(Magics):
             else:
                 internals["extensions"].add(ext)
                 if ext == "calendars":
-                    global config
+                    from .config import config
                     calendars.loadcalendars(ip)
                     config["default_calendar"] = "Gregorian"
                 elif ext == "geolocation":
@@ -698,6 +696,7 @@ class ImksMagic(Magics):
            %deltransformer), regexp is a regular expression using the named groups, and
            transformer is a function used to perform the input transformation.
         """
+        from .config import config
         command, doc = self.split_command_doc(arg)
         i = command.find("=")
         if i < 0:
@@ -721,6 +720,7 @@ class ImksMagic(Magics):
            Usage:
              %deltransformer name
         """
+        from .config import config
         del config["intrans"][arg.strip()]
         return
 
@@ -774,7 +774,7 @@ class ImksMagic(Magics):
           -x   Extended search: include variables
           -i   For wildcard searches, ignore the case
         """
-        global config
+        from .config import config
         opts, name = self.parse_options(args, "ayuUpPstfxci")
         if name == "":
             self.shell.run_line_magic("imks", "-h")
@@ -828,7 +828,7 @@ class ImksMagic(Magics):
             shown = False
             for n, d in namespaces:
                 f = [k for k, v in d.items()
-                     if str(getattr(v, "__doc__", "")).upper().find(name) >= 0]
+                     if getattr(v, "__doc__", "").upper().find(name) >= 0]
                 if f:
                     if not shown:
                         print(name)
@@ -882,8 +882,8 @@ class ImksMagic(Magics):
                     if hasattr(obj, "__timestamp__"):
                         fields.append((spaces + "Timestamp",
                                        obj.__timestamp__ or "<no timestamp>"))
-                    # TODO: inspector not implement in shell.py
-                    res.append(self.shell.inspector._format_fields(fields,13+len(spaces)))
+                    # noinspection PyProtectedMember
+                    res.append(self.shell.inspector._format_fields(fields, 13+len(spaces)))
                 page("\n\n".join(res))
             else:
                 res = units.isunit(name)
@@ -974,7 +974,7 @@ class ImksMagic(Magics):
         Usage:
           %pickle [-p protocol] filename
         """
-        global config, internals
+        from .config import config, internals
         import pickle 
 
         opts, us = self.parse_options(args, ":p")
@@ -991,7 +991,7 @@ class ImksMagic(Magics):
         # Pickle all variables we can
         fails = []
         d = {}
-        for k,v in self.shell.user_ns.items():
+        for k, v in self.shell.user_ns.items():
             try:
                 d[k] = pickle.dumps(v)
             except:
@@ -1012,7 +1012,6 @@ class ImksMagic(Magics):
         Usage:
           %unpickle filename
         """
-        global config
         import pickle
         opts, us = self.parse_options(args, "")
         us = us.split()
@@ -1039,13 +1038,14 @@ class ImksMagic(Magics):
         units.save_variables(self.shell)
         print("Done.")
 
+    # noinspection PyUnusedLocal
     @line_magic
     def reset(self, args):
         """Reset the iMKS session.
 
         This does a full reset: the engine, however, is left unchanged.
         """
-        global config
+        from .config import config
         import gc
         # this code is from IPython
         ip = self.shell

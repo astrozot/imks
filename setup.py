@@ -2,9 +2,10 @@
 
 from setuptools import setup
 
+
 def version():
     import re
-    VERSION_FILE="imks/_version.py"
+    VERSION_FILE = "imks/_version.py"
     VERSION_REGEX = r"^__version__ = ['\"]([^'\"]*)['\"]"
     with open(VERSION_FILE, "rt") as f:
         version_line = f.read()
@@ -14,9 +15,11 @@ def version():
     else:
         raise RuntimeError("Unable to find version string in %s." % VERSION_FILE)
 
+
 def readme():
     with open('README.rst') as f:
         return f.read()
+
 
 setup(name='imks',
       version=version(),
@@ -46,8 +49,9 @@ setup(name='imks',
           # 'ProxyTypes;python_version<"3.0"',
           # 'objproxies;python_version>"3.0"'
           'ProxyTypes'
+          # 'objproxies'
         ],
-      extras_require = {
+      extras_require={
         'numpy': ['numpy'],
         'mpmath': ['mpmath'],
         'uncertainties':  ['uncertainties'],

@@ -26,6 +26,9 @@ Main Features
   unit systems using magic commands.  Definitions can be stored in an external
   file for reuse.
 
+* Units can be entered using standard symbols (for example km/s),
+  but also in a natural language (for example kilometers per second).
+
 * Currencies are considered as physical units.  Automatically retrieves a
   large list of currencies and exchange rates from openexchangerates.org and
   stores them in a file for offline use.
@@ -88,6 +91,12 @@ iMKS extends the standard Python syntax in several ways:
   a parenthesis, a single division can be used, as in 9.8[m/s^2]. Additionally,
   a unit specification can contain (at most) one divide (/) sign: in this case
   all units following the sign will have their exponents reversed.
+
+* Units can also be specified using a natural language. These are named "verbose
+  units" and follow standard rules. Verbose units must always be enclosed within
+  brackets and should follow the recommended English style for units.  Examples
+  of verbose units are [kilometers per second], [dyne per square inches],
+  [inverse years] or [cubic meters per second squared kilogram].
 
 * Physical quantities can be used in expressions with the standard operators.
   
@@ -173,6 +182,16 @@ iMKS extends the standard Python syntax in several ways:
   prefix is allowed:
 
   > 1200[m] @ [*m] --> 1.2[km]
+
+* Verbose units are automatically recognized:
+
+  > 220[kilometers per second] --> 220000.0[m s^-1]
+
+  These can also be used after the @ operator. Alternatively, one can force the
+  use of verbose units in the output:
+
+  > %imks -v 2
+  > c --> 299792458.0[meters per second]
 
 * Unit systems work just like list of units that can be used after the @
   operator:
@@ -305,6 +324,29 @@ magic commands:
   specification, <transformer> is called with the result of the expression: it
   must return a string that will be displayed on the screen.
   
+Most of these commands can be (and should be) used with documentation strings:
+that is, one could write:
+
+%newbaseunit m # "Meter"
+%newprefix k # "Kilo"
+%newunit nmi=1852[m] # "Nautical Mile"
+
+For (base) units, prefixes, and (base) currencies, the first line of the
+documentation string is used to define the verbose form of the corresponding
+quantity. If the documentation string contains spaces, these will be replaced
+by dashes in the verbose definition. Therefore the above definitions allow one
+to write verbose units such as
+
+[meter], [meters], [kilometers], [nautical-miles]
+
+Note that the plural are automatically recognized and that prefixes are used
+together with units without any space or dash. In case one desires to provide
+a longer description in the documentation of a unit, without that being used
+as a verbose unit, one should add newlines in the documentation string. For
+example
+
+%newbaseunit m   # "Meter\n\nThe meter is standard unit of length."
+
 
 Other magic commands
 --------------------
@@ -448,6 +490,6 @@ The following rules are used:
 * If necessary, one can directly use the Value, System, and Doc objects to
   make more complicated expressions.
 
-* The know prefixes, units, and unit systems are stored in the dictionaries
+* The known prefixes, units, and unit systems are stored in the dictionaries
   prefixes, units, and systems, freely accessible from the user space.
 """

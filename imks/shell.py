@@ -1,18 +1,55 @@
-import sys, os, shlex, getopt
-import tokenize, inspect
-from io import StringIO, open
+import getopt
+import inspect
+import os
+import shlex
+import sys
+import tokenize
 from code import InteractiveConsole
+from io import StringIO, open
 
-from .config import *
-from .transformers import command_transformer, unit_transformer, transform, magic_transformer
+from .transformers import command_transformer, unit_transformer, magic_transformer
 
 
+class Inspector(object):
+
+    @staticmethod
+    def __head(x):
+        return "\x1b[0;1;37m" + x + "\x1b[0;37m"
+
+    def _format_fields(self, fields, title_width=0):
+        """Formats a list of fields for display.
+
+        Parameters
+        ----------
+        fields : list
+          A list of 2-tuples: (field_title, field_content)
+        title_width : int
+          How many characters to pad titles to. Default to longest title.
+        """
+        out = []
+        header = self.__head
+        if title_width == 0:
+            title_width = max(len(title) + 2 for title, _ in fields)
+        for title, content in fields:
+            if len(content.splitlines()) > 1:
+                title = header(title + ':') + '\n'
+            else:
+                title = header((title + ':').ljust(title_width))
+            out.append(title + content)
+        return "\n".join(out)
+
+
+# noinspection PyClassicStyleClass
 class Shell(InteractiveConsole):
+    # noinspection PyShadowingBuiltins
     def __init__(self, locals=None, filename="<console>"):
         InteractiveConsole.__init__(self, locals=locals, filename=filename)
         self.locals.update({"run_magic": lambda s: self.run_magic(s)})
         self.user_ns = self.locals
+        self.inspector = Inspector()
+        self.magics = {}
 
+    # noinspection PyUnusedLocal
     def reset(self, new_session=True):
         self.locals = {}
         self.locals.update({"run_magic": lambda s: self.run_magic(s)})
@@ -52,7 +89,9 @@ class Shell(InteractiveConsole):
             result = fn(line)
             return result
 
-    def find_user_code(self, target, *args, **kwargs):
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def find_user_code(target, *args, **kwargs):
         with open(target, "rt", encoding="utf-8") as f:
             return f.read()
 
@@ -123,6 +162,7 @@ class Magics(object):
     # Instance of IPython shell
     shell = None
 
+    # noinspection PyUnusedLocal
     def __init__(self, shell=None, **kwargs):
         if not self.__class__.registered:
             raise ValueError('Magics subclass without registration - '
@@ -149,7 +189,8 @@ class Magics(object):
                 self.magics[magic_name] = meth_name
         self.shell.magics = self.magics
 
-    def arg_err(self, func):
+    @staticmethod
+    def arg_err(func):
         """Print docstring if incorrect arguments were passed."""
         print('Error in arguments:')
         print(inspect.getdoc(func))
@@ -161,6 +202,7 @@ class Magics(object):
         similar to getopt.getopt."""
 
         # inject default options at the beginning of the input line
+        # noinspection PyProtectedMember
         caller = sys._getframe(1).f_code.co_name
         arg_str = '%s %s' % (self.options_table.get(caller, ''), arg_str)
 

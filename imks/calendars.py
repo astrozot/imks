@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TODO:
-# 1. Clean everything!
-# 2. Fix mnemonics for Chinese calendar (cycle not working)
+# TODO: Fix mnemonics for Chinese calendar (cycle not working)
 
 import time
 from collections import OrderedDict as ODict
-from mpmath import mpmathify, floor
+from math import floor
 from unidecode import unidecode
 from . import pycalcal as pcc
-from .units import Value
+from .units import Value, units
 from . import geolocation
 
 try:
+    # noinspection PyCompatibility
     from builtins import str as text
 except ImportError:
+    # noinspection PyCompatibility
     from __builtin__ import unicode as text
 
 
@@ -36,10 +36,10 @@ A date in this calendar can be specified as using the following formats:
 """ % (", ".join(keys[0:c.holidayarg]))
     bounds = []
     for p in keys:
-        _, min, max = c.dateparts[p]
+        _, min_val, max_val = c.dateparts[p]
         bounds.append("%s [%s, %s]" %
-                      (p, "-inf" if min is None else min,
-                       "+inf" if max is None else max))
+                      (p, "-inf" if min_val is None else min_val,
+                       "+inf" if max_val is None else max_val))
     doc += """
 The bounds for calendar parts are: %s.
 """ % (", ".join(bounds))
@@ -137,7 +137,7 @@ class CalDate(Value):
     daystart = "midnight"               # midnight, noon, sunset, sunrise, or time
     weeklen = 7                         # The length of a week
 
-    def __init__(self, *opars, **kw):
+    def __new__(cls, *opars, **kw):
         """Initialize an instance of the calendar (a date or a datetime).
 
         This function is generic enough to work with any implemented calendar.
@@ -177,9 +177,10 @@ class CalDate(Value):
         """
         # First, we call the parent constructor.  This fixes self.unit and
         # self.absolute; moreover, it provides a reference length for a day
-        Value.__init__(self, mpmathify(1), "day", absolute=True)
+        self = super(CalDate, cls).__new__(cls, 1.0, "day", absolute=0)
         ref = self.value
         pars = list(opars)              # Parameters can be modified (holidays...)
+        self.date = None
         self.datetime = kw.get("datetime", None)
         self.tz = kw.get("tz", None)
         self.fixed = None
@@ -205,10 +206,10 @@ class CalDate(Value):
                     self.tz = pars[0].tz
             elif isinstance(pars[0], Value):
                 if not pars[0].unit:
-                    self.fixed = mpmathify(pars[0].value)
+                    self.fixed = pars[0].value
                 else:
                     pars[0].check_units(self)
-                    self.fixed = mpmathify(pars[0].value / ref)
+                    self.fixed = pars[0].value / ref
                 if self.datetime is None:
                     self.datetime = self.fixed != int(self.fixed)
                 elif not self.datetime:
@@ -223,7 +224,7 @@ class CalDate(Value):
                     self.datetime = True
                 else:
                     try:
-                        self.fixed = mpmathify(pars[0])
+                        self.fixed = pars[0]
                     except TypeError:
                         raise ValueError("Unrecognized date '%s'" % pars[0])
             else:
@@ -235,7 +236,7 @@ class CalDate(Value):
                 self.value = self.fixed * ref
             self.date = None
             # @@@ self.value and all the rest
-            return
+            return self
         # Check possible holidays
         if len(pars) > self.holidayarg and \
                 isinstance(pars[self.holidayarg], str):
@@ -262,7 +263,7 @@ class CalDate(Value):
             if self.datetime is None:
                 self.datetime = len(pars) > len(self.dateparts)
             for n, par in enumerate(self.dateparts.keys()):
-                dummy, min, max = self.dateparts[par]
+                _, min_val, max_val = self.dateparts[par]
                 # First check if we are using mnemonics
                 if isinstance(pars[n], str):
                     parser = getattr(self, "parse_" + par, None)
@@ -283,12 +284,12 @@ class CalDate(Value):
                                        (self.calendar, par))
                 # Now check boundaries
                 par_n = int(pars[n])
-                if min is not None and par_n < min:
+                if min_val is not None and par_n < min_val:
                     raise ValueError("%s: value %d for %s is smaller than minimum acceptable (%d)" %
-                                     (self.calendar, int(par_n), par, min))
-                if max is not None and par_n > max:
+                                     (self.calendar, int(par_n), par, min_val))
+                if max_val is not None and par_n > max_val:
                     raise ValueError("%s: value %d for %s is larger than maximum acceptable (%d)" %
-                                     (self.calendar, par_n, par, max))
+                                     (self.calendar, par_n, par, max_val))
             # Finally perform the conversion using the PyCalCal functions
             self.date = getattr(pcc, self.prefix + "_date")(*[int(p) for p in pars[0:len(self.dateparts)]])
             self.fixed = getattr(pcc, "fixed_from_" + self.prefix)(self.date)
@@ -300,9 +301,9 @@ class CalDate(Value):
         if self.datetime:
             # First we need to "massage" self.fixed: make it a float number,
             # and correct it for the daystart calendar attribute.
-            self.fixed = mpmathify(self.fixed)
+            self.fixed = self.fixed
             rest = pars[len(self.dateparts):] + [0, 0, 0]
-            rest0 = mpmathify(rest[0])  # Hours: used for sunset-sunrise calendars
+            rest0 = rest[0]  # Hours: used for sunset-sunrise calendars
             if self.daystart == "midnight":
                 pass
             elif self.daystart == "noon":
@@ -347,14 +348,13 @@ class CalDate(Value):
                 if rest[n] >= maxs[n]:
                     raise ValueError("%s: value %d for %s is not smaller than maximum acceptable (%d)" %
                                      (self.__class__.__name__, rest[n], names[n], maxs[n]))
-            f = mpmathify(rest[0])/24 + mpmathify(rest[1])/1440 + \
-                mpmathify(rest[2])/86400
+            f = rest[0]/24 + rest[1]/1440 + rest[2]/86400
             self.fixed += f / daylength - 0.5
-        # @@@ Timezone corrections
-        self.value = Value(self.fixed, "day").value
+        self.value = Value(float(self.fixed), "day").value
+        return self
 
     # Standard operations
-    def __copy__(self):
+    def __copy__(self, *args, **kwargs):
         result = self.__class__(self.fixed)
         result.datetime = self.datetime
         result.date = self.date
@@ -366,12 +366,12 @@ class CalDate(Value):
     # A.2. Sums and subtractions
     def __add__(self, y):
         if not isinstance(y, Value):
-            y = Value(y)
+            y = Value(float(y))
         if not bool(y.unit):
             delta = y.value
             datetime = self.datetime or not isinstance(delta, (int, long))
         else:
-            delta = y.value / Value(1, "day").value
+            delta = y.value / units['day'].value
             datetime = self.datetime or delta != floor(delta)
         if y.absolute:
             raise ValueError("Cannot add two absolute values")
@@ -384,7 +384,7 @@ class CalDate(Value):
                 delta = y.value
                 datetime = self.datetime or not isinstance(delta, (int, long))
             else:
-                delta = y.value / Value(1, "day").value
+                delta = y.value / units['day'].value
                 datetime = self.datetime or delta != floor(delta)
             absolute = not y.absolute
         elif isinstance(y, CalDate):
@@ -399,7 +399,7 @@ class CalDate(Value):
             return self.__class__(self.fixed - delta, datetime=datetime,
                                   tz=self.tz)
         else:
-            return Value(self.fixed - delta, "day")
+            return Value(float(self.fixed - delta), "day")
     __radd__ = __add__
 
     def __rsub__(self, y):
@@ -415,7 +415,7 @@ class CalDate(Value):
     def __str__(self):
         return unidecode(self)
 
-    def show(self):
+    def show(self, *args, **kwargs):
         return self.calendar + "(" + ",".join(map(str, self.date)) + ")"
 
     def showtimeofday(self):
@@ -447,18 +447,19 @@ class CalDate(Value):
                 elif self.daystart == "6:00":
                     fixed -= 0.25
                 elif self.daystart == "sunrise":
-                    for iter in [0, 1]:
+                    for _ in [0, 1]:
                         f = sunrise(fixed)
                         fixed = self.fixed - (f - floor(f) - 0.5)
                 elif self.daystart == "sunset":
-                    for iter in [0, 1]:
+                    for _ in [0, 1]:
                         f = sunset(fixed - 1)
                         fixed = self.fixed - (f - floor(f) - 0.5)
+            # noinspection PyAttributeOutsideInit
             self.date = getattr(pcc, self.prefix + "_from_fixed")(int(round(fixed)))
         return self
 
     def __dir__(self):
-        names = ["realdate", "weekday"] + \
+        names = [u"realdate", u"weekday"] + \
                 self.dateparts.keys() + self.__dict__.keys()
         o = self.__class__
         while True:
@@ -510,16 +511,16 @@ class CalDate(Value):
         return self - (self - k).weekday
 
     def kday_on_or_after(self, k):
-        return (self + self.weeklen - 1).kday_on_or_before(k)
+        return (self + Value(self.weeklen - 1, "day")).kday_on_or_before(k)
 
     def kday_before(self, k):
         return (self - 1).kday_on_or_before(k)
 
     def kday_after(self, k):
-        return (self + self.weeklen).kday_on_or_before(k)
+        return (self + Value(self.weeklen, "day")).kday_on_or_before(k)
 
     def kday_nearest(self, k): 
-        return (self + self.weeklen/2).kday_on_or_before(k)
+        return (self + Value(self.weeklen/2, "day")).kday_on_or_before(k)
 
     def kday_nth(self, k, n):
         if n > 0:
@@ -544,7 +545,8 @@ class JDDate(CalDate):
     dateparts = ODict([
         ("jd", (lambda x: x[0], None, None))])
 
-    def __init__(self, *pars, **kw):
+    def __new__(cls, *pars, **kw):
+        self = super(JDDate, cls).__new__(cls, *pars, **kw)
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
@@ -557,9 +559,11 @@ class JDDate(CalDate):
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_jd(pars[0])
         self.weeklen = 7
+        return self
 
     def recalc(self):
         if not self.date:
+            # noinspection PyAttributeOutsideInit
             self.date = (pcc.jd_from_fixed(self.fixed),)
         return self
 
@@ -580,7 +584,8 @@ class MJDDate(CalDate):
     dateparts = ODict([
         ("mjd", (lambda x: x[0], None, None))])
 
-    def __init__(self, *pars, **kw):
+    def __new__(cls, *pars, **kw):
+        self = super(MJDDate, cls).__new__(cls, *pars, **kw)
         if len(pars) != 1:
             raise ValueError("Wrong number of parameters passed to %s" %
                              self.calendar)
@@ -593,9 +598,11 @@ class MJDDate(CalDate):
             self.date = [int(pars[0])]
             self.fixed = pcc.fixed_from_mjd(pars[0])
         self.weeklen = 7
+        return self
 
     def recalc(self):
         if not self.date:
+            # noinspection PyAttributeOutsideInit
             self.date = (pcc.mjd_from_fixed(self.fixed),)
         return self
 

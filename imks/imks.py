@@ -6,16 +6,15 @@ from IPython.core.inputtransformer import (StatelessInputTransformer,
 from ._version import __version__, __date__
 from . import units
 from .transformers import command_transformer, unit_transformer
-from .config import *
 from .completers import *
 
 
 def load_ipython_extension(ip):
     from .magics import ImksMagic, change_engine
-    global config
+    from .config import config
 
     # make sure we have a ~/.imks directory
-    import os, os.path
+    import os.path
     dotpath = os.path.join(os.environ["HOME"], ".imks")
     if os.path.exists(dotpath):
         if not os.path.isdir(dotpath):
@@ -42,12 +41,16 @@ def load_ipython_extension(ip):
     config["intrans"] = {}
 
     # nice LaTeX formatter
-    import mpmath
     latex_formatter = ip.display_formatter.formatters['text/latex']
     latex_formatter.for_type(float, lambda x:
                              ("${%s}$" % str(x)).replace("e", r"} \times 10^{"))
-    latex_formatter.for_type(mpmath.mpf, lambda x:
-                             ("${%s}$" % str(x)).replace("e", r"} \times 10^{"))
+    try:
+        # noinspection PyUnresolvedReferences
+        import mpmath
+        latex_formatter.for_type(mpmath.mpf, lambda x:
+                                 ("${%s}$" % str(x)).replace("e", r"} \times 10^{"))
+    except ImportError:
+        pass
     
     # magic
     ImksMagic.imks_doc()
@@ -62,7 +65,7 @@ def load_ipython_extension(ip):
     
     # run command-line options
     if "InteractiveShellApp" in ip.config and \
-      "exec_lines" in ip.config.InteractiveShellApp:
+            "exec_lines" in ip.config.InteractiveShellApp:
         for line in ip.config.InteractiveShellApp.exec_lines:
             ip.run_cell(line, store_history=False)
         # Remove already executed lines

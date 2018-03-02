@@ -1,7 +1,9 @@
-import re, tokenize
+import re
+import tokenize
 from collections import deque
 from io import StringIO
-from .config import *
+from . import units
+
 
 re_date = re.compile(r"(\d+(\.\d+){2,})([ ]+\d\d?:\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?:\d\d?(\.\d*)?|[ ]+\d\d?(\.\d*)?)?")
 
@@ -26,7 +28,7 @@ def change_token(t, value):
 # Magic transformer: used only by the standalone version of imks
 
 def magic_transformer(tokens):
-    global config
+    from .config import config
     if not config["enabled"]:
         return tokens
         
@@ -73,7 +75,7 @@ def magic_transformer(tokens):
 # Command transformer: works on strings and does, e.g., date input
 
 def command_transformer(line):
-    global config
+    from .config import config
     if not config["enabled"]:
         return line
     if line and line[-1] == '!':
@@ -139,32 +141,32 @@ def unit_create(substatus, queue, brackets=False):
                 (tokenize.OP, u',', (l2, c2+6), (l2, c2+7), string),
                 (tokenize.STRING, u, (l2, c2+7), (l2, c2+7+len(u)), string),
                 (tokenize.OP, u')', (l2, c2+7+len(u)), (l2, c2+8+len(u)), string)], \
-               offset
+            offset
     else:
         if brackets:
             u = unit_quote(queue[1:-1])
             l1, c1 = queue[0][2]
             offset = c1 + len(u) - queue[-1][3][1]
             return [(tokenize.STRING, u, (l1, c1), (l1, c1+len(u)), string)], \
-                   offset
+                offset
         else:
             u = unit_quote(queue)
             l1, c1 = queue[0][2]
             offset = c1 + len(u) - queue[-1][3][1]
             return [(tokenize.STRING, u, (l1, c1), (l1, c1+len(u)), string)], \
-                   offset
+                offset
 
 
 def unit_transformer(tokens):
-    global config, internals
+    from .config import config, internals
     if not config["enabled"]:
         return tokens
     engine = internals["engine"]
     
-    # fix multiline issue
+    # fix multi-line issue
     tokens = list(filter(lambda x: x[0] != tokenize.NL, tokens))
 
-    # @@@DEBUG
+    # DEBUG ONLY:
     # for t in tokens:
     #    print(t)
     
@@ -365,7 +367,7 @@ def unit_transformer(tokens):
                     l1, c1 = t[3]
                     s = t[-1]
                     offset += 7             # This is OK, tokens1 is empty now
-                    newtoks.extend([change_token(t, "|"), 
+                    newtoks.extend([change_token(t, value),
                                     (tokenize.NAME, u"System", (l1, c1), (l1, c1+6), s),
                                     (tokenize.OP, u"(", (l1, c1+6), (l1, c1+7), s)])
                 else:
@@ -581,6 +583,7 @@ def unit_transformer(tokens):
 try:
     unicode
 except NameError:
+    # noinspection PyShadowingBuiltins
     unicode = str
 
 
