@@ -22,20 +22,26 @@ class Currency(units.Value):
 
 def getrates(app_id="", offline=False, grace=3, historical=None,
              strict=False, timeout=3):
-    import os, time, pickle, json
+    import os
+    import time
+    import pickle
+    import json
     global currencydict, currencytime
     url1 = 'http://openexchangerates.org/api/currencies.json'
     url2 = 'https://openexchangerates.org/api/latest.json?app_id=%s' % app_id
     url3 = 'http://openexchangerates.org/api/historical/%%s.json?app_id=%s' % app_id
-    # FIXME: ~/.imks might not exist
-    path = os.path.join(os.getenv('HOME'), '.imks', 'currencies.dat')
-    if historical:
-        force = True
-    else:
-        force = False
+    # Next line just to avoid PyCharm warnings
+    home = path = imks_path = ''
+    force = True
+    if not historical:
         try:
-            currencytime = os.path.getmtime(path)
-            delta = (time.time() - currencytime) / 86400.0
+            home = os.getenv('HOME')
+            if not home:
+                raise OSError
+            imks_path = os.path.join(home, '.imks')
+            path = os.path.join(imks_path, 'currencies.dat')
+            update = os.path.getmtime(path)
+            delta = (time.time() - update) / 86400.0
         except OSError:
             force = True
             delta = 0
@@ -55,11 +61,16 @@ def getrates(app_id="", offline=False, grace=3, historical=None,
             data = json.loads(response.decode('utf-8'))
             currencytime = data["timestamp"]
             rates = data["rates"]
-            if not historical:
-                f = open(path, "wb")
-                pickle.dump(currencydict, f, protocol=2)
-                pickle.dump(rates, f, protocol=2)
-                f.close()
+            if home and not historical:
+                try:
+                    if not os.path.exists(imks_path):
+                        os.mkdir(imks_path)
+                    f = open(path, 'wb')
+                    pickle.dump(currencydict, f, protocol=2)
+                    pickle.dump(rates, f, protocol=2)
+                    f.close()
+                except OSError:
+                    pass
             return rates
         except error.URLError as e:
             if strict:

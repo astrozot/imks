@@ -4,6 +4,7 @@ import unittest
 from . import units, currencies
 from .config import *
 
+
 class UnitTestCase(unittest.TestCase):
     def setUp(self):
         from . import imks_standalone
@@ -58,9 +59,9 @@ class UnitTestCase(unittest.TestCase):
             v2 = float(v2)
             u2 = u2[:-1]
             self.assertAlmostEqual(v1, v2,
-                msg="Conversion failed: %s != %s" % (x1, x2))
+                                   msg="Conversion failed: %s != %s" % (x1, x2))
             self.assertEqual(u1, u2,
-                msg="Conversion failed (unit error): %s != %s" % (u1, u2))
+                             msg="Conversion failed (unit error): %s != %s" % (u1, u2))
 
     def test_functions(self):
         tests = [("sqrt(3m)", "1.7320508075689[m^1/2]"),
@@ -74,9 +75,10 @@ class UnitTestCase(unittest.TestCase):
             v2 = float(v2)
             u2 = u2[:-1]
             self.assertAlmostEqual(v1, v2,
-                msg="Operation failed: %s = %s[%s] != %s" % (x1, v1, u1, x2))
+                                   msg="Operation failed: %s = %s[%s] != %s" %
+                                       (x1, v1, u1, x2))
             self.assertEqual(u1, u2,
-                msg="Operation failed (unit error): %s != %s" % (u1, u2))
+                             msg="Operation failed (unit error): %s != %s" % (u1, u2))
 
     def test_calendars(self):
         tests = [('Gregorian(1900, 2, 28) + 1[day]', '/Thursday, 1 March 1900.*/'),
@@ -95,19 +97,20 @@ class UnitTestCase(unittest.TestCase):
                 v2 = float(v2)
                 u2 = u2[:-1]
                 self.assertAlmostEqual(v1, v2,
-                    msg="Operation failed: %s = %s[%s] != %s" % (x1, v1, u1, x2))
+                                       msg="Operation failed: %s = %s[%s] != %s" %
+                                           (x1, v1, u1, x2))
                 self.assertEqual(u1, u2,
-                    msg="Operation failed (unit error): %s != %s" % (u1, u2))
+                                 msg="Operation failed (unit error): %s != %s" % (u1, u2))
 
             else:
                 self.shell.push(u"_res_=" + x1)
                 r1 = str(self.shell.locals['_res_'])
                 if x2[0] == '/':
                     self.assertRegexpMatches(r1, x2[1:-1],
-                        msg="Operation failed: %s = %s !~ %s" % (x1, r1, x2[1:-1]))
+                                             msg="Operation failed: %s = %s !~ %s" % (x1, r1, x2[1:-1]))
                 else:
                     self.assertEqual(r1, x2,
-                        msg="Operation failed: %s = %s != %s" % (x1, r1, x2))
+                                     msg="Operation failed: %s = %s != %s" % (x1, r1, x2))
 
             
 if __name__ == '__main__':

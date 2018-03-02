@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-from random import random, randrange
+from random import randrange
 from . import units, currencies
 from .units import Value as V
 
@@ -13,17 +13,17 @@ class UnitTestCase(unittest.TestCase):
         for b in ['m', 'g', 's', 'A', 'K', 'mol', 'cd']:
             units.newbaseunit(b)
         for k, v in [('G', 1000000000.0), ('M', 1000000.0), ('k', 1000.0),
-             ('h', 100.0), ('da', 10.0), ('', 1.0), ('d', 0.1), ('c', 0.01),
-             ('m', 0.001), ('u', 1.0e-6), ('µ', 1.0e-6), ('n', 1.0e-9)]:
+                     ('h', 100.0), ('da', 10.0), ('', 1.0), ('d', 0.1), ('c', 0.01),
+                     ('m', 0.001), ('u', 1.0e-6), ('µ', 1.0e-6), ('n', 1.0e-9)]:
             units.newprefix(k, v)
         for k, v, u in [('N', 1.0, 'kg m s^-2'),
-                     ('J', 1.0, 'N m'),
-                     ('W', 1.0, 'J/s'),
-                     ('Pa', 1.0, 'N/m^2'),
-                     ('C', 1.0, 'A s'),
-                     ('h', 3600.0, 's'),
-                     ('mph', 0.44704, 'm s^-1'),
-                     ('eV', 1.6021766208e-19, 'm^2 kg s^-2')]:
+                        ('J', 1.0, 'N m'),
+                        ('W', 1.0, 'J/s'),
+                        ('Pa', 1.0, 'N/m^2'),
+                        ('C', 1.0, 'A s'),
+                        ('h', 3600.0, 's'),
+                        ('mph', 0.44704, 'm s^-1'),
+                        ('eV', 1.6021766208e-19, 'm^2 kg s^-2')]:
             units.newunit(k, V(v, u))
         units.newunit('degC', (V(273.15, 'K'), V(1.0, 'K')))
         values = {'pi': V(3.1415926535898),
@@ -52,9 +52,9 @@ class UnitTestCase(unittest.TestCase):
                  (V(4.0, 'm/s') / V(2.0, 'm/s'), V(2.0))]
         for a, b in tests:
             self.assertEqual(a.unit, b.unit,
-                msg="Unit operation failed: %s != %s" % (a, b))
+                             msg="Unit operation failed: %s != %s" % (a, b))
             self.assertAlmostEqual((a - b).value, 0.0,
-                msg="Unit operation failed: %s != %s" % (a, b))
+                                   msg="Unit operation failed: %s != %s" % (a, b))
 
     def test_comparisons(self):
         tests = [(V(1.2, 'm'), V(119.0, 'cm'), '__gt__'),
@@ -65,7 +65,7 @@ class UnitTestCase(unittest.TestCase):
                  (V(30.0, 'm/s'), V(30.0, 'km/h'), '__ne__')]
         for a, b, c in tests:
             self.assertTrue(getattr(a, c)(b),
-                msg="Comparison %s %s %s failed" % (a, c, b))
+                            msg="Comparison %s %s %s failed" % (a, c, b))
 
     def test_errors_incompatible(self):
         tests = [('m', 's'),
@@ -83,7 +83,7 @@ class UnitTestCase(unittest.TestCase):
                     if v1.value == 0 or v2.value == 0:
                         continue
                     with self.assertRaisesRegexp(units.UnitError,
-                        "\[.*\] *incompatible with *\[.*\] *in *%s" % op):
+                                                 "\[.*\] *incompatible with *\[.*\] *in *%s" % op):
                         tmp = getattr(v1, op)(v2)
 
     def test_simple_conversions(self):
@@ -125,9 +125,7 @@ class UnitTestCase(unittest.TestCase):
                  (V(12.0, 'cm'), ('m',), '0.12[m]'),
                  (V(1400.0, 'm'), ('*m',), '1.4[km]')]
         for a, b, c in tests:
-            print(a,b,c)
             x = a | units.System(*b)
-            print(a, b, c, str(x))
             self.assertEqual(str(x), c, msg="Conversion failed")
 
     def test_unit_systems(self):
@@ -140,9 +138,9 @@ class UnitTestCase(unittest.TestCase):
                  (V(1.0), ('kg/m', '"c"', '"G"'), '1.34663530964e+27[kg m^-1]'),
                  (V(1.0), ('kg', 'm', '"c"', '"G"'), '1.0'),
                  (V(1.0), ('kg', "'planck'"),
-                      "2.17647019563e-08['G'^1/2 'c'^-1/2 'hbar'^-1/2 kg]"),
+                  "2.17647019563e-08['G'^1/2 'c'^-1/2 'hbar'^-1/2 kg]"),
                  (V(2.1764701956342e-8, "'G'^1/2 'c'^-1/2 'hbar'^-1/2 kg"), (),
-                      '1.0')]
+                  '1.0')]
         for a, b, c in tests:
             x = a | units.System(*b)
             self.assertEqual(str(x), c, msg="Conversion failed")

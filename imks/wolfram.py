@@ -109,7 +109,7 @@ def wolfram(query, verbose=False):
             us = {}
             for v in vs:
                 if isinstance(v, Value):
-                    u = tuple(v.unit.to_list())
+                    u = tuple(v.unit)
                     if u in us:
                         us[u].append(v)
                     else:

@@ -828,7 +828,7 @@ class ImksMagic(Magics):
             shown = False
             for n, d in namespaces:
                 f = [k for k, v in d.items()
-                     if str(getattr(v, "__doc__", "")).upper().find(name) >= 0]
+                     if getattr(v, "__doc__", "").upper().find(name) >= 0]
                 if f:
                     if not shown:
                         print(name)
@@ -882,7 +882,7 @@ class ImksMagic(Magics):
                     if hasattr(obj, "__timestamp__"):
                         fields.append((spaces + "Timestamp",
                                        obj.__timestamp__ or "<no timestamp>"))
-                    # TODO: inspector not implement in shell.py
+                    # noinspection PyProtectedMember
                     res.append(self.shell.inspector._format_fields(fields, 13+len(spaces)))
                 page("\n\n".join(res))
             else:

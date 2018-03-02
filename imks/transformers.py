@@ -583,6 +583,7 @@ def unit_transformer(tokens):
 try:
     unicode
 except NameError:
+    # noinspection PyShadowingBuiltins
     unicode = str
 
 

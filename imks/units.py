@@ -212,6 +212,7 @@ class UnitTree(tuple):
 
         :param Tuple[Tuple[Union[str, UnitTree], float]] obj:  UnitTree description
         """
+        # noinspection PyArgumentList
         return super(UnitTree, cls).__new__(cls, obj)
 
     @classmethod
@@ -308,9 +309,9 @@ class UnitTree(tuple):
                 new_unit.append((k, v))
         return factor, UnitTree(new_unit)
 
+    # noinspection PyShadowingNames
     def show(self, latex=False, verbose=False, singular=False):
         """
-
         :param bool latex:    If true, the output follow the LaTeX style
         :param bool verbose:  If true, units are shown in verbose mode (e.g.
                               "meters per second"
@@ -448,6 +449,7 @@ class Unit(np.ndarray):
             np.copyto(obj, tmp)
         return obj
 
+    # noinspection PyMethodMayBeStatic
     def __array_finalize__(self, obj):
         if obj is None:
             return
@@ -534,6 +536,7 @@ class Value(np.ndarray):
 
     def __array_prepare__(self, array, context=None):
         # FIXME: Implement using context = [ufunc, *args, 0?]
+        # noinspection PyArgumentList
         results = super(Value, self).__array_prepare__(array, context)
         return results
 
@@ -542,7 +545,8 @@ class Value(np.ndarray):
         u0 = self.unit
         if isinstance(y, Value):
             u1 = y.unit
-            if u0 != u1 and (not tolerant or (self.value != 0 and y.value != 0)):
+            if u0 != u1 and (not tolerant or (np.any(self.value != 0) and
+                                              np.any(y.value != 0))):
                 if where:
                     raise UnitCompatibilityError(u0, u1, where)
                 raise UnitCompatibilityError(u0, u1)
@@ -554,7 +558,7 @@ class Value(np.ndarray):
         global tolerant
         value = self.value
         unit = self.unit
-        if bool(unit) and (not tolerant or value != 0):
+        if bool(unit) and (not tolerant or np.any(value != 0)):
             if where:
                 raise UnitCompatibilityError(unit, Unit(), where)
             raise UnitCompatibilityError(unit, Unit())
@@ -725,6 +729,7 @@ class Value(np.ndarray):
                 if np.sum(residuals) < 1e-7 and min(map(abs, x)) > 1e-5:
                     yield sum((u * e for u, e in zip(js, x) if e != 0), UnitTree())
 
+    # noinspection PyShadowingNames
     def show(self, latex=False, verbose=False):
         global defaultsystem
         tilde = ""
@@ -767,7 +772,7 @@ class Value(np.ndarray):
                 myexp = 1
                 fprefix = ""
                 unit = UnitTree.simple(myunit)
-            avalue = abs(value)
+            avalue = np.median(abs(value))
             dexes = [(k, avalue / prefixes[k] ** myexp)
                      for k in self.showprefix
                      if prefixes[k] ** myexp <= avalue and
@@ -787,6 +792,7 @@ class Value(np.ndarray):
             u = "[" + u + "]"
         if latex:
             if hasattr(value, "_repr_latex_"):
+                # noinspection PyProtectedMember
                 v = value._repr_latex_()
             else:
                 v = str(value)
@@ -1600,6 +1606,7 @@ def delsystem(name):
 isunit_re = re.compile('^' + unit_regex + '$', re.UNICODE)
 
 
+# noinspection PyShadowingNames
 def isunit(fullname, verbose=False):
     global prefixonly
     match = isunit_re.match(fullname)

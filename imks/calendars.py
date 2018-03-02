@@ -454,11 +454,12 @@ class CalDate(Value):
                     for _ in [0, 1]:
                         f = sunset(fixed - 1)
                         fixed = self.fixed - (f - floor(f) - 0.5)
+            # noinspection PyAttributeOutsideInit
             self.date = getattr(pcc, self.prefix + "_from_fixed")(int(round(fixed)))
         return self
 
     def __dir__(self):
-        names = ["realdate", "weekday"] + \
+        names = [u"realdate", u"weekday"] + \
                 self.dateparts.keys() + self.__dict__.keys()
         o = self.__class__
         while True:
@@ -562,6 +563,7 @@ class JDDate(CalDate):
 
     def recalc(self):
         if not self.date:
+            # noinspection PyAttributeOutsideInit
             self.date = (pcc.jd_from_fixed(self.fixed),)
         return self
 
@@ -600,6 +602,7 @@ class MJDDate(CalDate):
 
     def recalc(self):
         if not self.date:
+            # noinspection PyAttributeOutsideInit
             self.date = (pcc.mjd_from_fixed(self.fixed),)
         return self
 

@@ -1,4 +1,3 @@
-import sys
 from imks import imks_standalone
 
 try:

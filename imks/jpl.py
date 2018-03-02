@@ -1,6 +1,6 @@
 from lxml import html
 import requests
-from .units import Value, System
+from .units import Value
 from .config import *
 
 planet_table = """
@@ -33,7 +33,7 @@ def genitive(name):
 
 def JPLconst(value, error, unit, name="", absolute=False):
     try:
-        dummy = float(value) + float(error if error.strip() != "" else "0")
+        _ = float(value) + float(error if error.strip() != "" else "0")
         engine_func = getattr(internals["engine_module"], internals["engine"])
         if unit == "days" or unit == "d":
             unit = "day"
@@ -79,6 +79,7 @@ def load_planets():
     for n in range(22, len(texts), 11):
         data.append(texts[n:n+11])
     planets = {}
+    name = None
     for line in data:
         for n, value in enumerate(line):
             if n == 0:
@@ -145,6 +146,7 @@ def load_moons():
             if labels[l] == "GM":
                 my_units[l] = "km3/s2"
         moons[planet] = {}
+        name = None
         for line in lines[1:]:
             for n, value in enumerate(line.xpath(".//td|th")):
                 if n == 0:
@@ -155,12 +157,12 @@ def load_moons():
                     continue
                 v, e = [s.strip(u" \n\t\xA0")
                         for s in value.text_content().partition("[")[0].partition(u"\xB1")[::2]]
-                l = n//2+1
-                if labels[l] == "Magnitude":
+                n_half = n//2+1
+                if labels[n_half] == "Magnitude":
                     v = v.strip("RVr")
                 if v == "?":
                     v = "nan"
-                moons[planet][name][labels[l]] = (v, e, my_units[l])
+                moons[planet][name][labels[n_half]] = (v, e, my_units[n_half])
     # Now go for the satellite elements
     url = "http://ssd.jpl.nasa.gov/?sat_elem"
     page = requests.get(url)
@@ -169,6 +171,7 @@ def load_moons():
     for p, title in enumerate(titles):
         planet = planets[p]
         tables = title.xpath('..//table')
+        name = None
         for table in tables:
             lines = table.xpath('tr')
             labels = [td.text_content() for td in lines[0].xpath('td|th')]
@@ -274,7 +277,9 @@ def load_minor(minor):
 
 
 def loadJPLconstants(force=False):
-    import pickle, os, os.path
+    import pickle
+    import os
+    # FIXME: .imks might not exists
     path = os.path.join(os.getenv('HOME'), '.imks', 'JPLconstants.dat')
     planets = {}
     moons = {}
